@@ -1,0 +1,153 @@
+//
+//  FitAnalyzer.swift
+//  FitAnalysis
+//
+
+import DogmaKit
+import DogmaKitIO
+import DogmaText
+
+/// Fits found in a text, plus what was lost while reading it.
+public struct FitAnalysis: Sendable, Codable, Equatable {
+    public var fits: [FitSummary]
+    /// Human-readable notes about lines that were skipped or changed on import.
+    public var warnings: [String]
+
+    public init(fits: [FitSummary], warnings: [String]) {
+        self.fits = fits
+        self.warnings = warnings
+    }
+}
+
+public enum FitAnalysisError: Error, Sendable, Equatable {
+    /// The text holds no fit in any supported format.
+    case noFitFound
+    /// The fit was read but the engine could not load it.
+    case rejected(String)
+}
+
+/// Reads fits in EFT, DNA or in-game XML and calculates their stats with all skills at level V.
+public struct FitAnalyzer: Sendable {
+
+    private let names: TextCatalog
+    private let importer: FitImporter
+
+    public init() throws {
+        let names = try TextCatalog.english()
+        self.names = names
+        self.importer = try FitImporter(resolver: names)
+    }
+
+    public func analyze(_ text: String) async throws(FitAnalysisError) -> FitAnalysis {
+        let result = importer.load(text)
+        guard !result.documents.isEmpty else { throw .noFitFound }
+
+        var warnings = result.warnings.map(describe)
+        var fits: [FitSummary] = []
+        for document in result.documents {
+            guard let shipTypeID = document.pilots.first?.ship?.type else { continue }
+            // A fresh engine per fit: the session is an actor, so concurrent requests do not share state.
+            let engine = DogmaEngine()
+            do {
+                let loadWarnings = try await engine.load(document)
+                warnings += loadWarnings.map { String(describing: $0) }
+            } catch {
+                throw .rejected(String(describing: error))
+            }
+            guard var summary = await Self.summarize(engine) else { continue }
+            summary.name = document.name
+            summary.shipName = names.name(of: shipTypeID) ?? "#\(shipTypeID.rawValue)"
+            fits.append(summary)
+        }
+        guard !fits.isEmpty else { throw .noFitFound }
+        return FitAnalysis(fits: fits, warnings: warnings)
+    }
+
+    /// Stats of the first pilot's hull. Name fields are left for the caller to fill.
+    private static func summarize(_ engine: DogmaEngine) async -> FitSummary? {
+        await engine.evaluate { stats in
+            guard let pilotID = stats.pilots.allIDs.first(where: { _ in true }) else { return nil }
+            let hull = stats[pilotID.hull]
+
+            let resonance = hull.resonance
+            let hitPoints = hull.hitPoints
+            let effective = hitPoints.effective(resonance: resonance)
+            let capacitor = hull.capacitor()
+            let navigation = hull.navigation
+            let targeting = hull.targeting
+
+            return FitSummary(
+                name: nil,
+                shipTypeID: hull.typeID.rawValue,
+                shipName: "",
+                damage: .init(dps: .init(hull.dps()), volley: .init(hull.volleyDamage())),
+                defense: .init(hitPoints: .init(hitPoints),
+                               effectiveHitPoints: .init(effective),
+                               shieldResistances: .init(resistance: resonance.shield),
+                               armorResistances: .init(resistance: resonance.armor),
+                               hullResistances: .init(resistance: resonance.hull)),
+                capacitor: .init(capacity: capacitor.capacity,
+                                 rechargeTime: capacitor.rechargeTime,
+                                 stableLevel: capacitor.stableLevel,
+                                 lastsFor: capacitor.isStable ? nil : capacitor.lastsFor),
+                navigation: .init(maxVelocity: navigation.maxVelocity,
+                                  alignTime: navigation.alignTime,
+                                  signatureRadius: navigation.signatureRadius,
+                                  warpSpeed: navigation.warpSpeed),
+                targeting: .init(maxTargetRange: targeting.maxTargetRange,
+                                 scanResolution: targeting.scanResolution,
+                                 maxLockedTargets: targeting.maxLockedTargets),
+                fitting: .init(cpu: .init(hull.cpu),
+                               powerGrid: .init(hull.powerGrid),
+                               calibration: .init(hull.calibration)))
+        }
+    }
+
+    private func name(_ typeID: TypeID) -> String {
+        names.name(of: typeID) ?? "#\(typeID.rawValue)"
+    }
+
+    private func describe(_ warning: ImportWarning) -> String {
+        switch warning {
+        case .unknownType(let name): "Unknown item: \(name)"
+        case .unknownTypeID(let typeID): "Unknown type ID: \(typeID.rawValue)"
+        case .malformedLine(let line): "Unrecognized line: \(line)"
+        case .malformedHeader(let header): "Unrecognized fit header: \(header)"
+        case .noFitsFound: "No fit found"
+        case .droppedCargo(let typeID, let quantity): "Cargo ignored: \(name(typeID)) x\(quantity)"
+        case .droppedUnfitted(let typeID): "Unfitted item ignored: \(name(typeID))"
+        case .unboundCharge(let typeID): "Charge fits no module: \(name(typeID))"
+        case .unknownMutaplasmid(let name): "Unknown mutaplasmid: \(name)"
+        case .mutationRollsDropped(let typeID): "Mutation rolls lost: \(name(typeID))"
+        case .unknownAttribute(let name): "Unknown attribute: \(name)"
+        }
+    }
+}
+
+// MARK: - Conversions from engine values
+
+extension FitSummary.DamageProfile {
+    init(_ vector: DamageVector) {
+        self.init(em: vector.em, thermal: vector.thermal, kinetic: vector.kinetic, explosive: vector.explosive)
+    }
+
+    /// Resistance is the complement of the engine's resonance (damage multiplier).
+    init(resistance resonance: DamageVector) {
+        self.init(em: 1 - resonance.em,
+                  thermal: 1 - resonance.thermal,
+                  kinetic: 1 - resonance.kinetic,
+                  explosive: 1 - resonance.explosive)
+    }
+}
+
+extension FitSummary.Layers {
+    init(_ hitPoints: HitPoints) {
+        self.init(shield: hitPoints.shield, armor: hitPoints.armor, hull: hitPoints.hull)
+    }
+}
+
+extension FitSummary.Usage {
+    init(_ resource: Resource) {
+        self.init(used: resource.used, total: resource.total)
+    }
+}
