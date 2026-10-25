@@ -49,6 +49,43 @@ struct FitAnalyzerTests {
         #expect(analysis.warnings.contains { $0.contains("Not A Real Module II") })
     }
 
+    @Test("An armor repairer gives peak tank; sustained tank never exceeds it")
+    func tank() async throws {
+        let text = """
+        [Punisher, Rep]
+        Small Armor Repairer II
+        Multispectrum Energized Membrane II
+        """
+        let fit = try #require(try await FitAnalyzer().analyze(text).fits.first)
+        let tank = fit.tank
+
+        #expect(tank.peak.armor > 0)
+        #expect(tank.peak.shield == 0)
+        #expect(tank.peak.passiveShield > 0)
+        #expect(tank.sustained.armor <= tank.peak.armor)
+        #expect(tank.sustained.passiveShield == tank.peak.passiveShield)
+    }
+
+    @Test("Load warnings name the items and repeated ones are counted")
+    func namedWarnings() async throws {
+        let text = """
+        [Rifter, Wrong charges]
+        Stasis Webifier II, EMP S
+        Stasis Webifier II, EMP S
+        """
+        let analysis = try await FitAnalyzer().analyze(text)
+
+        #expect(analysis.warnings == ["EMP S does not fit Stasis Webifier II (×2)"])
+    }
+
+    @Test("The summary carries the fit as EFT")
+    func eftExport() async throws {
+        let fit = try #require(try await FitAnalyzer().analyze(Self.rifter).fits.first)
+
+        #expect(fit.eft.hasPrefix("[Rifter, Autocannon brawl]"))
+        #expect(fit.eft.contains("200mm AutoCannon II, EMP S"))
+    }
+
     @Test("Text without a fit is rejected")
     func noFit() async throws {
         await #expect(throws: FitAnalysisError.noFitFound) {

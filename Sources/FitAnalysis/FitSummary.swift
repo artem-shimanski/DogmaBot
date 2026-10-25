@@ -14,10 +14,13 @@ public struct FitSummary: Sendable, Codable, Equatable {
     public var shipGroupName: String
     public var damage: Damage
     public var defense: Defense
+    public var tank: Tank
     public var capacitor: Capacitor
     public var navigation: Navigation
     public var targeting: Targeting
     public var fitting: Fitting
+    /// The fit as calculated, in EFT: what was recognized on import, in canonical order and naming.
+    public var eft: String
 
     public init(name: String?,
                 shipTypeID: UInt32,
@@ -25,20 +28,24 @@ public struct FitSummary: Sendable, Codable, Equatable {
                 shipGroupName: String,
                 damage: Damage,
                 defense: Defense,
+                tank: Tank,
                 capacitor: Capacitor,
                 navigation: Navigation,
                 targeting: Targeting,
-                fitting: Fitting) {
+                fitting: Fitting,
+                eft: String) {
         self.name = name
         self.shipTypeID = shipTypeID
         self.shipName = shipName
         self.shipGroupName = shipGroupName
         self.damage = damage
         self.defense = defense
+        self.tank = tank
         self.capacitor = capacitor
         self.navigation = navigation
         self.targeting = targeting
         self.fitting = fitting
+        self.eft = eft
     }
 }
 
@@ -106,6 +113,35 @@ extension FitSummary {
             self.shieldResistances = shieldResistances
             self.armorResistances = armorResistances
             self.hullResistances = hullResistances
+        }
+    }
+
+    /// Repair rates, effective HP per second against a uniform damage pattern.
+    public struct Repair: Sendable, Codable, Equatable {
+        public var passiveShield: Double
+        public var shield: Double
+        public var armor: Double
+        public var hull: Double
+
+        public init(passiveShield: Double, shield: Double, armor: Double, hull: Double) {
+            self.passiveShield = passiveShield
+            self.shield = shield
+            self.armor = armor
+            self.hull = hull
+        }
+
+        public var total: Double { passiveShield + shield + armor + hull }
+    }
+
+    public struct Tank: Sendable, Codable, Equatable {
+        /// Passive regeneration plus every repairer running at full rate.
+        public var peak: Repair
+        /// What the capacitor can keep running indefinitely; equals `peak` when the capacitor is stable.
+        public var sustained: Repair
+
+        public init(peak: Repair, sustained: Repair) {
+            self.peak = peak
+            self.sustained = sustained
         }
     }
 

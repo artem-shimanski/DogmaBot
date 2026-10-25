@@ -4,13 +4,15 @@
 //
 
 import DiscordBM
+import Foundation
 import FitAnalysis
 
 /// Components V2 layout of fit summaries: one container per fit.
 enum FitCard {
 
-    /// A message holds at most 40 components and 4000 characters of text; a card takes about 10 and 800.
-    static let maxFits = 3
+    /// A message holds at most 40 components and 4000 characters of text; a card with a battleship fit takes
+    /// about 10 components and 1700 characters.
+    static let maxFits = 2
 
     private static let normalColor: DiscordColor = 0x3B82F6
     private static let overloadedColor: DiscordColor = 0xEF4444
@@ -46,10 +48,12 @@ enum FitCard {
             components: [
                 .section(header),
                 .separator(.init(divider: true, spacing: .small)),
-                .textDisplay(.init(content: offense(fit) + "\n" + defense(fit))),
+                .textDisplay(.init(content: [offense(fit), defense(fit), tank(fit)].joined(separator: "\n"))),
                 .separator(.init(divider: true, spacing: .small)),
                 .textDisplay(.init(content: [capacitor(fit), navigation(fit), targeting(fit), self.fitting(fit)]
-                    .joined(separator: "\n")))
+                    .joined(separator: "\n"))),
+                .separator(.init(divider: true, spacing: .small)),
+                .textDisplay(.init(content: eft(fit)))
             ],
             accent_color: isOverloaded ? overloadedColor : normalColor
         ))
@@ -101,6 +105,47 @@ enum FitCard {
             """
     }
 
+    /// Rates per layer. The sustained column is shown only when the capacitor cannot keep every repairer running;
+    /// otherwise it repeats the peak column.
+    private static func tank(_ fit: FitSummary) -> String {
+        let peak = fit.tank.peak
+        let sustained = fit.tank.sustained
+        let layers: [(String, Double, Double)] = [
+            ("Passive", peak.passiveShield, sustained.passiveShield),
+            ("Shield", peak.shield, sustained.shield),
+            ("Armor", peak.armor, sustained.armor),
+            ("Hull", peak.hull, sustained.hull)
+        ]
+        let isLimited = layers.contains { StatFormat.number($0.1) != StatFormat.number($0.2) }
+
+        let header: String
+        let rows: [String]
+        let summary: String
+        if isLimited {
+            header = String(repeating: " ", count: 9) + pad("Peak", 8) + pad("Sustained", 11)
+            rows = layers.map { name, peak, sustained in
+                name.padding(toLength: 9, withPad: " ", startingAt: 0)
+                    + pad(StatFormat.number(peak), 8) + pad(StatFormat.number(sustained), 11)
+            }
+            summary = "**\(StatFormat.number(sustained.total))** EHP/s sustained · "
+                + "**\(StatFormat.number(peak.total))** peak"
+        } else {
+            header = String(repeating: " ", count: 9) + pad("EHP/s", 8)
+            rows = layers.map { name, peak, _ in
+                name.padding(toLength: 9, withPad: " ", startingAt: 0) + pad(StatFormat.number(peak), 8)
+            }
+            summary = "**\(StatFormat.number(peak.total))** EHP/s"
+        }
+        return """
+            ### Tank
+            \(summary)
+            ```
+            \(header)
+            \(rows.joined(separator: "\n"))
+            ```
+            """
+    }
+
     private static func capacitor(_ fit: FitSummary) -> String {
         "**Capacitor** \(StatFormat.capacitor(fit.capacitor)) · \(StatFormat.number(fit.capacitor.capacity)) GJ"
     }
@@ -123,6 +168,13 @@ enum FitCard {
         let fitting = fit.fitting
         return "**Fitting** CPU \(usage(fitting.cpu)) · PG \(usage(fitting.powerGrid)) · "
             + "calibration \(usage(fitting.calibration))"
+    }
+
+    /// The fit in a code block, which Discord gives a copy button.
+    private static func eft(_ fit: FitSummary) -> String {
+        // A backtick in a user-supplied fit name would close the block early.
+        let text = fit.eft.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "`", with: "'")
+        return "```\n\(text)\n```"
     }
 
     // MARK: - Helpers

@@ -34,11 +34,14 @@ public struct FitAnalyzer: Sendable {
 
     private let names: TextCatalog
     private let importer: FitImporter
+    private let exporter: FitExporter
 
     public init() throws {
         let names = try TextCatalog.english()
+        let catalog = try TypeCatalog()
         self.names = names
-        self.importer = try FitImporter(resolver: names)
+        self.importer = FitImporter(resolver: names, catalog: catalog)
+        self.exporter = FitExporter(names: names, catalog: catalog)
     }
 
     public func analyze(_ text: String) async throws(FitAnalysisError) -> FitAnalysis {
@@ -52,19 +55,20 @@ public struct FitAnalyzer: Sendable {
             let engine = DogmaEngine()
             do {
                 let loadWarnings = try await engine.load(document)
-                warnings += loadWarnings.map { String(describing: $0) }
+                warnings += loadWarnings.map(describe)
             } catch {
                 throw .rejected(String(describing: error))
             }
             guard var summary = await summarize(engine) else { continue }
             summary.name = document.name
+            summary.eft = exporter.export(document, as: .eft).text
             fits.append(summary)
         }
         guard !fits.isEmpty else { throw .noFitFound }
-        return FitAnalysis(fits: fits, warnings: warnings)
+        return FitAnalysis(fits: fits, warnings: Self.counted(warnings))
     }
 
-    /// Stats of the first pilot's hull. The fit name is left for the caller to fill.
+    /// Stats of the first pilot's hull. The fit name and EFT text are left for the caller to fill.
     private func summarize(_ engine: DogmaEngine) async -> FitSummary? {
         let names = names
         return await engine.evaluate { stats in
@@ -75,6 +79,8 @@ public struct FitAnalyzer: Sendable {
             let hitPoints = hull.hitPoints
             let effective = hitPoints.effective(resonance: resonance)
             let capacitor = hull.capacitor()
+            let tank = hull.tank().effective(resonance: resonance)
+            let sustainedTank = hull.sustainableTank(capacitor: capacitor).effective(resonance: resonance)
             let navigation = hull.navigation
             let targeting = hull.targeting
 
@@ -89,6 +95,7 @@ public struct FitAnalyzer: Sendable {
                                shieldResistances: .init(resistance: resonance.shield),
                                armorResistances: .init(resistance: resonance.armor),
                                hullResistances: .init(resistance: resonance.hull)),
+                tank: .init(peak: .init(tank), sustained: .init(sustainedTank)),
                 capacitor: .init(capacity: capacitor.capacity,
                                  rechargeTime: capacitor.rechargeTime,
                                  stableLevel: capacitor.stableLevel,
@@ -102,12 +109,43 @@ public struct FitAnalyzer: Sendable {
                                  maxLockedTargets: targeting.maxLockedTargets),
                 fitting: .init(cpu: .init(hull.cpu),
                                powerGrid: .init(hull.powerGrid),
-                               calibration: .init(hull.calibration)))
+                               calibration: .init(hull.calibration)),
+                eft: "")
         }
     }
 
     private func name(_ typeID: TypeID) -> String {
         names.name(of: typeID) ?? "#\(typeID.rawValue)"
+    }
+
+    /// Repeated notes collapse into one with a count, keeping the order of first appearance.
+    private static func counted(_ warnings: [String]) -> [String] {
+        var counts: [String: Int] = [:]
+        var order: [String] = []
+        for warning in warnings {
+            if counts[warning] == nil { order.append(warning) }
+            counts[warning, default: 0] += 1
+        }
+        return order.map { warning in
+            let count = counts[warning] ?? 1
+            return count > 1 ? "\(warning) (×\(count))" : warning
+        }
+    }
+
+    private func describe(_ warning: FitDocument.Warning) -> String {
+        switch warning {
+        case .unknownFormat(let format): "Unknown document format: \(format)"
+        case .unsupportedVersion(let version): "Unsupported document version: \(version)"
+        case .pilotRejected(let index, let error): "Pilot \(index + 1) rejected: \(error)"
+        case .typeRejected(let typeID, _): "Cannot be fitted: \(name(typeID))"
+        case .skillNotFound(let typeID): "Unknown skill: \(name(typeID))"
+        case .chargeRejected(let charge, let module, _): "\(name(charge)) does not fit \(name(module))"
+        case .mutationRejected(let mutaplasmid, let typeID, _):
+            "\(name(mutaplasmid)) cannot be applied to \(name(typeID))"
+        case .rollRejected(_, let typeID, _): "Mutation roll out of range: \(name(typeID))"
+        case .targetOutOfRange: "Projection target is not in the fit"
+        case .valueClamped(let typeID, let value): "\(name(typeID)): \(value) adjusted"
+        }
     }
 
     private func describe(_ warning: ImportWarning) -> String {
@@ -140,6 +178,15 @@ extension FitSummary.DamageProfile {
                   thermal: 1 - resonance.thermal,
                   kinetic: 1 - resonance.kinetic,
                   explosive: 1 - resonance.explosive)
+    }
+}
+
+extension FitSummary.Repair {
+    init(_ tank: DogmaKit.Tank) {
+        self.init(passiveShield: tank.passiveShield,
+                  shield: tank.shieldRepair,
+                  armor: tank.armorRepair,
+                  hull: tank.hullRepair)
     }
 }
 

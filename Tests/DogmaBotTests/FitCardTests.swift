@@ -26,6 +26,38 @@ struct FitCardTests {
     Hobgoblin II x2
     """
 
+    /// A large fit with repairers, so every section of the card is present.
+    private static let dominix = """
+    [Dominix, Armor Drone Boat]
+    Large Armor Repairer II
+    Large Armor Repairer II
+    Multispectrum Energized Membrane II
+    Multispectrum Energized Membrane II
+    Damage Control II
+    Drone Damage Amplifier II
+    Drone Damage Amplifier II
+
+    Large Cap Battery II
+    Large Cap Battery II
+    Omnidirectional Tracking Link II
+    Omnidirectional Tracking Link II
+    500MN Microwarpdrive II
+
+    Neutron Blaster Cannon II, Void L
+    Neutron Blaster Cannon II, Void L
+    Neutron Blaster Cannon II, Void L
+    Neutron Blaster Cannon II, Void L
+    Neutron Blaster Cannon II, Void L
+    Neutron Blaster Cannon II, Void L
+
+    Large Auxiliary Nano Pump II
+    Large Nanobot Accelerator II
+    Large Trimark Armor Pump II
+
+    Ogre II x5
+    Hammerhead II x5
+    """
+
     private func response(_ text: String) async throws -> [String: Any] {
         let analysis = try await FitAnalyzer().analyze(text)
         let data = try JSONEncoder().encode(ComponentsResponse(components: FitCard.components(for: analysis)))
@@ -48,7 +80,7 @@ struct FitCardTests {
 
     @Test("Several fits stay within the message limits of 40 components and 4000 characters")
     func limits() async throws {
-        let text = Array(repeating: Self.rifter + "\nFoo Bar", count: FitCard.maxFits + 2).joined(separator: "\n\n")
+        let text = Array(repeating: Self.dominix + "\nFoo Bar", count: FitCard.maxFits + 2).joined(separator: "\n\n")
         let json = try await response(text)
         let data = try #require(json["data"] as? [String: Any])
 
