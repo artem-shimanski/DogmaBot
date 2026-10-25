@@ -40,6 +40,10 @@ let package = Package(
         .testTarget(
             name: "FitAnalysisTests",
             dependencies: ["FitAnalysis"]
+        ),
+        .testTarget(
+            name: "DogmaBotTests",
+            dependencies: ["DogmaBot"]
         )
     ]
 )

@@ -29,6 +29,9 @@ public enum FitAnalysisError: Error, Sendable, Equatable {
 /// Reads fits in EFT, DNA or in-game XML and calculates their stats with all skills at level V.
 public struct FitAnalyzer: Sendable {
 
+    /// Build number of the game data the stats are calculated from.
+    public static let sdeBuild = SDEVersion.buildNumber
+
     private let names: TextCatalog
     private let importer: FitImporter
 
@@ -45,7 +48,6 @@ public struct FitAnalyzer: Sendable {
         var warnings = result.warnings.map(describe)
         var fits: [FitSummary] = []
         for document in result.documents {
-            guard let shipTypeID = document.pilots.first?.ship?.type else { continue }
             // A fresh engine per fit: the session is an actor, so concurrent requests do not share state.
             let engine = DogmaEngine()
             do {
@@ -54,18 +56,18 @@ public struct FitAnalyzer: Sendable {
             } catch {
                 throw .rejected(String(describing: error))
             }
-            guard var summary = await Self.summarize(engine) else { continue }
+            guard var summary = await summarize(engine) else { continue }
             summary.name = document.name
-            summary.shipName = names.name(of: shipTypeID) ?? "#\(shipTypeID.rawValue)"
             fits.append(summary)
         }
         guard !fits.isEmpty else { throw .noFitFound }
         return FitAnalysis(fits: fits, warnings: warnings)
     }
 
-    /// Stats of the first pilot's hull. Name fields are left for the caller to fill.
-    private static func summarize(_ engine: DogmaEngine) async -> FitSummary? {
-        await engine.evaluate { stats in
+    /// Stats of the first pilot's hull. The fit name is left for the caller to fill.
+    private func summarize(_ engine: DogmaEngine) async -> FitSummary? {
+        let names = names
+        return await engine.evaluate { stats in
             guard let pilotID = stats.pilots.allIDs.first(where: { _ in true }) else { return nil }
             let hull = stats[pilotID.hull]
 
@@ -79,7 +81,8 @@ public struct FitAnalyzer: Sendable {
             return FitSummary(
                 name: nil,
                 shipTypeID: hull.typeID.rawValue,
-                shipName: "",
+                shipName: names.name(of: hull.typeID) ?? "#\(hull.typeID.rawValue)",
+                shipGroupName: names.name(of: hull.groupID) ?? "",
                 damage: .init(dps: .init(hull.dps()), volley: .init(hull.volleyDamage())),
                 defense: .init(hitPoints: .init(hitPoints),
                                effectiveHitPoints: .init(effective),

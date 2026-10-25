@@ -11,6 +11,7 @@ public struct FitSummary: Sendable, Codable, Equatable {
     public var name: String?
     public var shipTypeID: UInt32
     public var shipName: String
+    public var shipGroupName: String
     public var damage: Damage
     public var defense: Defense
     public var capacitor: Capacitor
@@ -21,6 +22,7 @@ public struct FitSummary: Sendable, Codable, Equatable {
     public init(name: String?,
                 shipTypeID: UInt32,
                 shipName: String,
+                shipGroupName: String,
                 damage: Damage,
                 defense: Defense,
                 capacitor: Capacitor,
@@ -30,6 +32,7 @@ public struct FitSummary: Sendable, Codable, Equatable {
         self.name = name
         self.shipTypeID = shipTypeID
         self.shipName = shipName
+        self.shipGroupName = shipGroupName
         self.damage = damage
         self.defense = defense
         self.capacitor = capacitor

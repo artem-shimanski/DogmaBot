@@ -15,6 +15,7 @@ public enum StatFormat {
         case 1_000_000...: return String(format: "%.2fM", value / 1_000_000)
         case 10_000...: return String(format: "%.1fk", value / 1_000)
         case 100...: return String(format: "%.0f", value)
+        case _ where value == value.rounded(): return String(format: "%.0f", value)
         default: return String(format: "%.1f", value)
         }
     }
@@ -31,6 +32,10 @@ public enum StatFormat {
         let total = Int(seconds.rounded())
         if total < 3600 { return String(format: "%dm %02ds", total / 60, total % 60) }
         return String(format: "%dh %02dm", total / 3600, total % 3600 / 60)
+    }
+
+    public static func warpSpeed(_ auPerSecond: Double) -> String {
+        String(format: "%.1f AU/s", auPerSecond)
     }
 
     /// A fraction 0…1 as a whole percentage.

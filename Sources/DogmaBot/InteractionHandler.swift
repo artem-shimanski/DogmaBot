@@ -33,17 +33,24 @@ struct InteractionHandler: GatewayEventHandler {
 
     /// Calculation takes milliseconds, so the result is sent as the initial response rather than deferred.
     private func analyze(_ text: String, for interaction: Interaction) async throws {
-        let message: Payloads.InteractionResponse.Message
+        let analysis: FitAnalysis
         do {
-            let analysis = try await analyzer.analyze(text)
-            message = .init(embeds: FitEmbed.embeds(for: analysis))
+            analysis = try await analyzer.analyze(text)
         } catch .noFitFound {
-            message = .init(content: "No fit found. Paste a fit in EFT, DNA or in-game XML format.",
-                            flags: [.ephemeral])
+            try await reject(interaction, "No fit found. Paste a fit in EFT, DNA or in-game XML format.")
+            return
         } catch .rejected(let reason) {
-            message = .init(content: "The fit cannot be calculated: \(reason)", flags: [.ephemeral])
+            try await reject(interaction, "The fit cannot be calculated: \(reason)")
+            return
         }
-        try await respond(to: interaction, with: .channelMessageWithSource(message))
+        let response = ComponentsResponse(components: FitCard.components(for: analysis))
+        try await client.createInteractionResponse(id: interaction.id, token: interaction.token, payload: response)
+            .guardSuccess()
+    }
+
+    /// Errors are visible to the invoking user only.
+    private func reject(_ interaction: Interaction, _ reason: String) async throws {
+        try await respond(to: interaction, with: .channelMessageWithSource(.init(content: reason, flags: [.ephemeral])))
     }
 
     private func respond(to interaction: Interaction, with response: Payloads.InteractionResponse) async throws {
