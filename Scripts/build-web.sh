@@ -19,9 +19,11 @@ Builds dogma-cli for WebAssembly and lays out Web/build:
 and a .gz next to each file for Web/serve.py. On WebAssembly DogmaKit reads the data files from the directory of
 the executable, as there are no resource bundles.
 
-Needs swiftly with the open-source toolchain and its Wasm SDK; Xcode's toolchain cannot target WebAssembly.
+Needs the open-source Swift toolchain and its Wasm SDK; Xcode's toolchain cannot target WebAssembly. With swiftly
+installed the script runs its toolchain; without it, the swift in PATH (as in the swift Docker images).
   \$SWIFT_TOOLCHAIN  toolchain for swiftly (default 6.4.1)
   \$SWIFT_WASM_SDK   Swift SDK name (default swift-<toolchain>-RELEASE_wasm)
+  \$OBJCOPY          llvm-objcopy to strip the module (default: next to swift, then in PATH)
 Install them with:
   swiftly install $TOOLCHAIN
   swiftly run swift sdk install <Wasm SDK URL from swift.org> --checksum <checksum> +$TOOLCHAIN
@@ -34,18 +36,29 @@ case ${1:-} in
     *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
 esac
 
-swift() {
-    swiftly run swift "$@" "+$TOOLCHAIN"
-}
+if command -v swiftly >/dev/null; then
+    swift() {
+        swiftly run swift "$@" "+$TOOLCHAIN"
+    }
+    SWIFT_BIN=$(dirname "$(swiftly run which swift "+$TOOLCHAIN")")
+else
+    command -v swift >/dev/null || { echo "Neither swiftly nor swift found; see Scripts/build-web.sh --help" >&2; exit 1; }
+    SWIFT_BIN=$(dirname "$(command -v swift)")
+fi
 
-command -v swiftly >/dev/null || { echo "swiftly not found; see Scripts/build-web.sh --help" >&2; exit 1; }
 swift sdk list | grep -qx "$SDK" || { echo "Swift SDK $SDK is not installed; see Scripts/build-web.sh --help" >&2; exit 1; }
 
 cd "$SELF"
 swift build -c release --product dogma-cli --swift-sdk "$SDK" --build-path "$BUILD"
 
-# llvm-objcopy ships with the toolchain, next to swift.
-OBJCOPY=$(dirname "$(swiftly run which swift "+$TOOLCHAIN")")/llvm-objcopy
+# llvm-objcopy ships with the toolchain on macOS; elsewhere it may come from the system's LLVM.
+if [ -z "${OBJCOPY:-}" ]; then
+    if [ -x "$SWIFT_BIN/llvm-objcopy" ]; then
+        OBJCOPY=$SWIFT_BIN/llvm-objcopy
+    else
+        OBJCOPY=$(command -v llvm-objcopy) || { echo "llvm-objcopy not found; set \$OBJCOPY" >&2; exit 1; }
+    fi
+fi
 # The data files live in DogmaKit's resource targets, which WebAssembly builds leave out.
 DOGMAKIT=$(swift package --build-path "$BUILD" show-dependencies --format json | python3 -c '
 import json, sys

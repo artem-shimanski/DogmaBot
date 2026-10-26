@@ -58,9 +58,12 @@ struct FitCardTests {
     Hammerhead II x5
     """
 
+    private static let webPage = "https://example.com/fit/"
+
     private func response(_ text: String) async throws -> [String: Any] {
         let analysis = try await FitAnalyzer().analyze(text)
-        let data = try JSONEncoder().encode(ComponentsResponse(components: FitCard.components(for: analysis)))
+        let data = try JSONEncoder().encode(ComponentsResponse(components: FitCard.components(for: analysis,
+                                                                                            webPage: Self.webPage)))
         return try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
@@ -89,10 +92,42 @@ struct FitCardTests {
         #expect(characters <= 4_000)
     }
 
+    @Test("The card links to the fit on the fit page instead of printing it")
+    func linkInsteadOfFit() async throws {
+        let analysis = try await FitAnalyzer().analyze(Self.rifter)
+        let fit = try #require(analysis.fits.first)
+        let json = try Self.json(FitCard.card(for: fit, webPage: Self.webPage))
+
+        #expect(json.contains("[Open in browser](\(CardText.webLink(Self.webPage, eft: fit.eft)))"))
+        #expect(!json.contains("[Rifter,"))
+    }
+
+    @Test("Import warnings stay out of the card")
+    func noWarnings() async throws {
+        let analysis = try await FitAnalyzer().analyze(Self.rifter + "\nNot A Real Module II")
+        let json = try Self.json(FitCard.components(for: analysis, webPage: Self.webPage))
+
+        #expect(!analysis.warnings.isEmpty)
+        #expect(!json.contains("Not A Real Module II"))
+    }
+
+    @Test("The comparison links to both fits on the fit page")
+    func compareLinks() async throws {
+        let analyzer = try FitAnalyzer()
+        let a = try #require(try await analyzer.analyze(Self.rifter).fits.first)
+        let b = try #require(try await analyzer.analyze(Self.dominix).fits.first)
+        let components = CompareCard.components(for: FitComparison(a, b), webPage: Self.webPage)
+        let json = try Self.json(components)
+
+        #expect(json.contains(CardText.webLink(Self.webPage, eft: a.eft)))
+        #expect(json.contains(CardText.webLink(Self.webPage, eft: b.eft)))
+        #expect(!json.contains("\"type\":2"))
+    }
+
     @Test("Markdown in the fit name is escaped")
     func escapedName() async throws {
         let analysis = try await FitAnalyzer().analyze(Self.rifter)
-        let data = try JSONEncoder().encode(FitCard.card(for: try #require(analysis.fits.first)))
+        let data = try JSONEncoder().encode(FitCard.card(for: try #require(analysis.fits.first), webPage: Self.webPage))
         let json = String(decoding: data, as: UTF8.self)
 
         #expect(json.contains(#"\\*Brawl\\*"#))
@@ -101,13 +136,20 @@ struct FitCardTests {
     @Test("A comparison of two large fits stays within the message limits")
     func compareLimits() async throws {
         let fit = try #require(try await FitAnalyzer().analyze(Self.dominix).fits.first)
-        let components = CompareCard.components(for: FitComparison(fit, fit), notes: ["A: Unknown item: Foo Bar"])
+        let components = CompareCard.components(for: FitComparison(fit, fit), webPage: Self.webPage)
         let data = try JSONEncoder().encode(ComponentsResponse(components: components))
         let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         let (count, characters) = Self.measure(json["data"] as Any)
         #expect(count <= 40)
         #expect(characters <= 4_000)
+    }
+
+    /// The payload as JSON text, with slashes left as is so that URLs can be searched for.
+    private static func json(_ value: some Encodable) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .withoutEscapingSlashes
+        return String(decoding: try encoder.encode(value), as: UTF8.self)
     }
 
     /// Number of components and characters of text in a message payload.

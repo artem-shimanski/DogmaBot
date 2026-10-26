@@ -13,8 +13,6 @@ enum CardText {
     static let normalColor: DiscordColor = 0x3B82F6
     static let overloadedColor: DiscordColor = 0xEF4444
 
-    private static let notesLimit = 600
-
     /// Right-aligns `text` in a column of `width` characters.
     static func pad(_ text: String, _ width: Int) -> String {
         String(repeating: " ", count: max(0, width - text.count)) + text
@@ -30,24 +28,6 @@ enum CardText {
         DiscordUtils.escapingSpecialCharacters(text)
     }
 
-    static func truncated(_ text: String, limit: Int) -> String {
-        text.count <= limit ? text : String(text.prefix(limit - 1)) + "…"
-    }
-
-    /// The fit in a code block, which Discord gives a copy button.
-    static func eftBlock(_ eft: String) -> String {
-        // A backtick in a user-supplied fit name would close the block early.
-        let text = eft.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "`", with: "'")
-        return "```\n\(text)\n```"
-    }
-
-    /// Import notes in small print, or `nil` when there are none.
-    static func notes(_ notes: [String]) -> Interaction.ActionRow.Component? {
-        guard !notes.isEmpty else { return nil }
-        let text = notes.map { "-# ⚠️ \($0)" }.joined(separator: "\n")
-        return .textDisplay(.init(content: truncated(text, limit: notesLimit)))
-    }
-
     /// The fit page with the fit in the fragment as base64url of its EFT. Browsers do not send the fragment to the
     /// server, so the page reads it on the client.
     static func webLink(_ page: String, eft: String) -> String {
@@ -56,6 +36,11 @@ enum CardText {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
         return "\(page)#eft=\(base64)"
+    }
+
+    /// A Markdown link to the fit on the fit page.
+    static func openLink(_ page: String, fit: FitSummary) -> String {
+        "[Open in browser](\(webLink(page, eft: fit.eft)))"
     }
 
     static var footer: Interaction.ActionRow.Component {

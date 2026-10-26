@@ -1,0 +1,67 @@
+# Builds the fit page (dogma-cli compiled to WebAssembly) and publishes it on GitHub Pages.
+name: Fit page
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push supersedes a deployment still in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  SWIFT_TOOLCHAIN: 6.4.1
+  WASM_SDK_URL: https://download.swift.org/swift-6.4.1-release/wasm-sdk/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE_wasm.artifactbundle.tar.gz
+  # From https://www.swift.org/api/v1/install/releases.json, release 6.4.1, platform wasm-sdk.
+  WASM_SDK_CHECKSUM: 783e6128d174d9f975b4eda68be02a5960681b723ef372e6876a7c2543a365d8
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container: swift:6.4.1-noble
+    steps:
+      - uses: actions/checkout@v7
+
+      # llvm-objcopy strips the module; python3 reads the dependency graph in the build script.
+      - name: Install tools
+        run: apt-get update && apt-get install -y --no-install-recommends llvm python3
+
+      - name: Install the Wasm SDK
+        run: swift sdk install "$WASM_SDK_URL" --checksum "$WASM_SDK_CHECKSUM"
+
+      - uses: actions/cache@v6
+        with:
+          path: .build-wasm
+          key: wasm-${{ env.SWIFT_TOOLCHAIN }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: wasm-${{ env.SWIFT_TOOLCHAIN }}-
+
+      - name: Build
+        run: Scripts/build-web.sh
+
+      # The page and what it loads; the .gz copies are for Web/serve.py only, Pages compresses on its own.
+      - name: Lay out the site
+        run: |
+          mkdir -p _site/build
+          cp Web/index.html _site/
+          cp Web/build/dogma-cli.wasm Web/build/sde.bin Web/build/text-en.bin _site/build/
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

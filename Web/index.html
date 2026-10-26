@@ -4,28 +4,213 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DogmaBot Fit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
-  body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
-  @media (prefers-color-scheme: dark) { body { background: #1e1f22; color: #ddd; } }
-  pre { white-space: pre-wrap; word-break: break-word; }
-  textarea { width: 100%; height: 12em; font: 13px ui-monospace, monospace; }
+  :root {
+    --bg: #edf0f3; --surface: #ffffff; --raised: #e3e8ed;
+    --ink: #0e151c; --muted: #56636f; --faint: #7a8691;
+    --line: #d5dce3; --line-subtle: #e6eaee; --line-leader: #b8c2cc;
+    --accent: #0a7f8c; --ok: #137a3e; --warn: #a35f00; --danger: #c0352b;
+    --em: #1f6fc0; --thermal: #c2412f; --kinetic: #6b7785; --explosive: #b36b00;
+    --display: "Chakra Petch", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0e13; --surface: #111821; --raised: #1a2330;
+      --ink: #e6edf3; --muted: #8b9bab; --faint: #5e6e7e;
+      --line: #1f2b38; --line-subtle: #1a2430; --line-leader: #2e3d4e;
+      --accent: #3fd0e0; --ok: #49d17d; --warn: #f0a43a; --danger: #ff6b5e;
+      --em: #5aa8f0; --thermal: #f06a5a; --kinetic: #a9b4c0; --explosive: #f0a43a;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--mono); }
+  button { font: inherit; color: inherit; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 16px; }
+
+  /* Header: the hull, the fit's name and the copy buttons. */
+  .top { display: flex; align-items: center; gap: 14px; }
+  .top img { width: 72px; height: 72px; border-radius: 6px; background: var(--raised); flex: none; }
+  .top .title { flex: 1; min-width: 0; }
+  .top h1 { margin: 0; font: 700 24px/1.15 var(--display); letter-spacing: .5px; }
+  .top .sub { color: var(--muted); font: 600 12px/1.4 var(--display); letter-spacing: 1.5px; text-transform: uppercase; }
+  .top .fitname { color: var(--ink); font: 500 14px/1.4 var(--mono); overflow-wrap: anywhere; }
+  .copy {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--accent); background: transparent; color: var(--accent);
+    font: 600 13px/1 var(--display); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+  }
+  .copy:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .copy.done { border-color: var(--ok); color: var(--ok); }
+  .copy svg { width: 15px; height: 15px; }
+  .copies { display: flex; flex-direction: column; gap: 6px; flex: none; }
+  select.fits {
+    margin-top: 12px; width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); font: inherit;
+  }
+
+  /* The DPS · HP · Cap strip at the top of the stats. */
+  .strip { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface);
+           border: 1px solid var(--line); border-radius: 8px; }
+  .strip > div { padding: 12px 14px; min-width: 0; }
+  .strip > div + div { border-left: 1px solid var(--line-subtle); }
+  .strip .label { display: flex; align-items: center; justify-content: space-between; gap: 6px;
+                  color: var(--muted); font: 600 12px/1.6 var(--display); letter-spacing: 1.5px; text-transform: uppercase; }
+  .strip .value { font: 600 22px/1.25 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strip .unit { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .switch { display: inline-flex; border: 1px solid var(--line-leader); border-radius: 5px; overflow: hidden; }
+  .switch button { border: 0; background: transparent; padding: 1px 6px; cursor: pointer; color: var(--muted);
+                   font: 600 10px/1.6 var(--display); letter-spacing: 1px; }
+  .switch button.on { background: var(--accent); color: var(--surface); }
+
+  /* Mobile tabs, sticky; desktop shows both columns instead. */
+  .tabs { position: sticky; top: 0; z-index: 2; display: none; gap: 8px; align-items: center;
+          margin: 12px -16px 0; padding: 8px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .tabs .seg { flex: 1; display: flex; border: 1px solid var(--line-leader); border-radius: 6px; overflow: hidden; }
+  .tabs .seg button { flex: 1; border: 0; padding: 8px; background: transparent; cursor: pointer; color: var(--muted);
+                      font: 600 13px/1 var(--display); letter-spacing: 1.5px; text-transform: uppercase; }
+  .tabs .seg button.on { background: var(--raised); color: var(--ink); }
+  .tabs .copy { padding: 8px 10px; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; margin-top: 8px; }
+  .col { min-width: 0; }
+
+  @media (max-width: 860px) {
+    .top .copies { display: none; }
+    .tabs { display: flex; }
+    .cols { grid-template-columns: minmax(0, 1fr); }
+    .cols[data-tab="fit"] #stats, .cols[data-tab="stats"] #fit { display: none; }
+  }
+  @media (max-width: 420px) {
+    .top img { width: 56px; height: 56px; }
+    .top h1 { font-size: 20px; }
+    .strip .value { font-size: 18px; }
+    .strip > div { padding: 10px; }
+  }
+
+  /* Sections: an uppercase heading over a card of rows. */
+  .section { margin-top: 18px; }
+  .section > h2 { display: flex; justify-content: space-between; gap: 8px; margin: 0 2px 6px;
+                  font: 600 13px/1.4 var(--display); letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .section > h2 > span:first-child { white-space: nowrap; }
+  .section > h2 .spans { display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 6px; text-align: right;
+                         font-family: var(--mono); font-weight: 500; letter-spacing: .5px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 8px 14px; }
+  .row + .row, .card > * + .row { border-top: 1px solid var(--line-subtle); }
+  .row .name { flex: 1; min-width: 0; }
+  .row .val { text-align: right; white-space: nowrap; }
+  .note { color: var(--muted); font-size: 11px; line-height: 1.5; padding: 10px 14px; }
+  .card > .note { border-top: 1px solid var(--line-subtle); }
+  .foot { color: var(--faint); font-size: 11px; margin: 6px 2px 0; }
+  .over { color: var(--danger); }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+
+  /* Fit contents. */
+  .item { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 14px 6px 10px; }
+  .item + .item { border-top: 1px solid var(--line-subtle); }
+  .item img { width: 40px; height: 40px; border-radius: 4px; background: var(--raised); flex: none; }
+  .item .text { flex: 1; min-width: 0; }
+  .item .text div:first-child { overflow-wrap: anywhere; }
+  .item .text .subtitle { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .item.empty { min-height: 40px; color: var(--faint); }
+  .item.empty .slot { width: 40px; height: 26px; border: 1px dashed var(--line-leader); border-radius: 4px; flex: none; }
+  .state { display: block; width: 14px; height: 14px; flex: none; color: var(--faint); }
+  .state.online { color: var(--warn); }
+  .state.active { color: var(--ok); }
+  .state.overloaded { color: var(--danger); }
+  .state.none { visibility: hidden; }
+  .alert { color: var(--warn); flex: none; }
+  .badge { font: 600 10px/1 var(--display); letter-spacing: 1px; text-transform: uppercase; padding: 3px 5px;
+           border: 1px solid var(--line-leader); border-radius: 4px; color: var(--muted); flex: none; }
+  .badge.space { border-color: var(--ok); color: var(--ok); }
+
+  .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; padding: 14px; }
+  .bar .head { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
+  .bar .head span:first-child { color: var(--muted); font: 600 11px/1.6 var(--display); letter-spacing: 1px; text-transform: uppercase; }
+  .bar .track { height: 4px; margin-top: 4px; border-radius: 2px; background: var(--raised); overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--accent); }
+  .bar.over .fill { background: var(--danger); }
+  .bar.over .head span:last-child { color: var(--danger); }
+
+  .warnings { border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
+  .warnings .row { color: var(--warn); font-size: 12px; min-height: 0; }
+
+  /* Stats. */
+  .matrix { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .matrix th { color: var(--muted); font: 600 11px/1.4 var(--display); letter-spacing: 1px; text-transform: uppercase;
+               padding: 10px 6px 6px; text-align: right; }
+  .matrix th:first-child { text-align: left; padding-left: 14px; }
+  .matrix th:last-child, .matrix td:last-child { padding-right: 14px; }
+  .matrix td { padding: 8px 6px; border-top: 1px solid var(--line-subtle); text-align: right; white-space: nowrap; }
+  .matrix td:first-child { text-align: left; padding-left: 14px; }
+  .matrix.tank { table-layout: fixed; }
+  .matrix.tank col.layer { width: 25%; }
+  .matrix.tank col.hp { width: 21%; }
+  .matrix.tank th:not(:first-child):not(:last-child) { text-align: center; }
+  .matrix.tank td:not(:first-child):not(:last-child) { padding-left: 3px; padding-right: 3px; }
+  .matrix .meter { margin-top: 0; }
+  @media (max-width: 420px) {
+    .matrix { font-size: 12px; }
+    .matrix th, .matrix td { padding-left: 3px; padding-right: 3px; }
+    .matrix th:first-child, .matrix td:first-child { padding-left: 10px; }
+    .matrix th:last-child, .matrix td:last-child { padding-right: 10px; }
+  }
+  .matrix tr.total td { font-weight: 600; border-top: 1px solid var(--line-leader); }
+
+  .dmg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px 14px; }
+  .dmg.toggle { cursor: pointer; }
+  .dmg > div { min-width: 0; }
+  .dmg .k { text-align: center; font: 600 10px/1.4 var(--display); letter-spacing: 1px; text-transform: uppercase;
+            white-space: nowrap; overflow: hidden; }
+  /* A figure on a track filled from the left to a share, as Neocom's HUDDamageBlock. */
+  .meter { position: relative; height: 24px; margin-top: 4px; border-radius: 4px; background: var(--raised); overflow: hidden; }
+  .meter i { position: absolute; left: 0; top: 0; bottom: 0; opacity: .45; }
+  .meter .v { position: relative; display: block; padding: 0 2px; text-align: center; font: 600 11px/24px var(--mono);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .split i { opacity: .45; }
+  .split { display: flex; height: 4px; margin: 0 14px 12px; border-radius: 2px; overflow: hidden; background: var(--raised); }
+  .source .row { border-top: 0; }
+  .card > .source + .source, .card > .dmg + .source { border-top: 1px solid var(--line-subtle); }
+  .big { font: 600 20px/1.2 var(--mono); }
+  .big small { color: var(--muted); font-size: 11px; margin-left: 4px; }
+
+  .pattern { display: flex; align-items: center; gap: 10px; padding: 10px 14px 0; }
+  .pattern select { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+                    background: var(--raised); color: var(--ink); font: 600 13px/1.2 var(--display);
+                    letter-spacing: 1px; text-transform: uppercase; }
+
+  .message { margin-top: 40px; text-align: center; color: var(--muted); }
+  .message.error { color: var(--danger); }
+  footer { margin: 28px 0 8px; color: var(--faint); font-size: 11px; text-align: center; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-<h1>Fit</h1>
-<p id="status">Loading…</p>
-<details id="source"><summary>EFT</summary><pre id="eft"></pre></details>
-<h2>Result</h2>
-<pre id="result"></pre>
+<div class="page" id="page">
+  <p class="message" id="message">Calculating…</p>
+</div>
 <script type="module">
 import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory }
   from "https://cdn.jsdelivr.net/npm/@bjorn3/browser_wasi_shim@0.4.2/dist/index.js";
 
-const status = document.getElementById("status");
-
-// The fit travels in the fragment, which the browser never sends to the server: #eft=<base64url of UTF-8 EFT>.
+// The fit travels in the fragment, which the browser never sends to the server: #eft=<base64url of UTF-8 text>
+// in any format dogma-cli reads (EFT, DNA, in-game XML), or #dna=<DNA string or chat link> as the game writes it.
 function fitFromHash() {
-  const value = new URLSearchParams(location.hash.slice(1)).get("eft");
+  const parameters = new URLSearchParams(location.hash.slice(1));
+  const dna = parameters.get("dna");
+  if (dna) return dna;
+  const value = parameters.get("eft");
   if (!value) return null;
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
   const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
@@ -38,55 +223,632 @@ async function bytes(url) {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-async function run(eft) {
-  const started = performance.now();
+// Runs `dogma-cli --sheet` over the fit and returns its JSON; throws with the tool's own message on failure.
+async function calculate(eft) {
   const [wasm, sde, text] = await Promise.all([
-    fetch("build/dogma-cli.wasm").then(r => r.arrayBuffer()),
+    bytes("build/dogma-cli.wasm"),
     bytes("build/sde.bin"),
     bytes("build/text-en.bin"),
   ]);
-  const loaded = performance.now();
-
   // On WebAssembly DogmaKit reads its data files from the directory of the executable.
   const app = new PreopenDirectory("/app", [
     ["sde.bin", new File(sde)],
     ["text-en.bin", new File(text)],
   ]);
-  let stdout = [];
-  let stderr = [];
+  const stdout = [];
+  const stderr = [];
   const fds = [
     new OpenFile(new File(new TextEncoder().encode(eft))),
     new ConsoleStdout(data => stdout.push(data)),
     new ConsoleStdout(data => stderr.push(data)),
     app,
   ];
-  const wasi = new WASI(["/app/dogma-cli.wasm", "--json"], [], fds);
+  const wasi = new WASI(["/app/dogma-cli.wasm", "--sheet"], [], fds);
   const module = await WebAssembly.compile(wasm);
   const instance = await WebAssembly.instantiate(module, { wasi_snapshot_preview1: wasi.wasiImport });
-  const compiled = performance.now();
-  let exitCode = 0;
-  try {
-    exitCode = wasi.start(instance);
-  } catch (error) {
-    stderr.push(new TextEncoder().encode(String(error)));
-    exitCode = -1;
-  }
-  const finished = performance.now();
-
+  const exitCode = wasi.start(instance);
   const decode = chunks => new TextDecoder().decode(new Uint8Array(chunks.flatMap(c => [...c])));
-  const output = decode(stdout);
-  const errors = decode(stderr);
-  status.textContent = `Download ${Math.round(loaded - started)} ms · compile ${Math.round(compiled - loaded)} ms · `
-    + `calculation ${Math.round(finished - compiled)} ms · exit ${exitCode}`;
-  document.getElementById("result").textContent = errors ? `${errors}\n${output}` : output;
+  if (exitCode !== 0) throw new Error(decode(stderr).trim() || `dogma-cli exited with ${exitCode}`);
+  return JSON.parse(decode(stdout));
+}
+
+// MARK: - Formatting
+
+const numberFormats = new Map();
+function num(value, maxFraction = 1, minFraction = 0) {
+  const key = `${minFraction}-${maxFraction}`;
+  if (!numberFormats.has(key)) {
+    numberFormats.set(key, new Intl.NumberFormat("en-US",
+      { minimumFractionDigits: minFraction, maximumFractionDigits: maxFraction }));
+  }
+  return numberFormats.get(key).format(value);
+}
+const percent = fraction => `${num(fraction * 100, 0)}%`;
+const dps = value => num(value, 1);
+const distance = meters => Math.abs(meters) >= 10000 ? `${num(meters / 1000, 1)} km` : `${num(meters, 0)} m`;
+
+/// "7.3 s" up to a minute, "1 m 20 s" up to an hour, "1 h 2 m" beyond.
+function seconds(value) {
+  if (!isFinite(value)) return "—";
+  const tenths = Math.round(Math.max(value, 0) * 10) / 10;
+  if (tenths < 60) return `${num(tenths, 1)} s`;
+  const whole = Math.round(tenths);
+  if (whole < 3600) return `${Math.floor(whole / 60)} m ${whole % 60} s`;
+  return `${Math.floor(whole / 3600)} h ${Math.floor(whole % 3600 / 60)} m`;
+}
+
+/// "1:48" or "1:02:03", for the narrow summary cell.
+function clock(value) {
+  if (!isFinite(value)) return "—";
+  const whole = Math.round(Math.max(value, 0));
+  const pad = n => String(n).padStart(2, "0");
+  const [h, m, s] = [Math.floor(whole / 3600), Math.floor(whole % 3600 / 60), whole % 60];
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+/// 14 100 → "14.1K", 2 400 000 → "2.4M".
+function compact(value) {
+  const rounded = Math.round(value);
+  if (rounded >= 1e6) return `${num(value / 1e6, 2)}M`;
+  if (rounded >= 1e3) return `${num(value / 1e3, 1)}K`;
+  return num(rounded, 0);
+}
+
+function isk(value) {
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${num(value / 1e9, 2)}B`;
+  if (abs >= 1e6) return `${num(value / 1e6, 2)}M`;
+  if (abs >= 1e3) return `${num(value / 1e3, 1)}K`;
+  return num(value, 0);
+}
+
+const resource = value => num(value, 1);
+
+const esc = value => String(value).replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const icon = typeID => `https://images.evetech.net/types/${typeID}/icon?size=64`;
+const render = typeID => `https://images.evetech.net/types/${typeID}/render?size=256`;
+
+// MARK: - Model
+
+const damageTypes = [
+  { key: "em", title: "EM", color: "var(--em)" },
+  { key: "thermal", title: "Therm", color: "var(--thermal)" },
+  { key: "kinetic", title: "Kin", color: "var(--kinetic)" },
+  { key: "explosive", title: "Exp", color: "var(--explosive)" },
+];
+
+const patterns = [
+  { title: "Uniform", vector: { em: 1, thermal: 1, kinetic: 1, explosive: 1 } },
+  { title: "EM", vector: { em: 1, thermal: 0, kinetic: 0, explosive: 0 } },
+  { title: "Thermal", vector: { em: 0, thermal: 1, kinetic: 0, explosive: 0 } },
+  { title: "Kinetic", vector: { em: 0, thermal: 0, kinetic: 1, explosive: 0 } },
+  { title: "Explosive", vector: { em: 0, thermal: 0, kinetic: 0, explosive: 1 } },
+  { title: "EM / Thermal", vector: { em: 1, thermal: 1, kinetic: 0, explosive: 0 } },
+  { title: "Kinetic / Thermal", vector: { em: 0, thermal: 1, kinetic: 1, explosive: 0 } },
+  { title: "Explosive / Kinetic", vector: { em: 0, thermal: 0, kinetic: 1, explosive: 1 } },
+];
+
+const sum = profile => profile.em + profile.thermal + profile.kinetic + profile.explosive;
+
+/// Hit points it takes to remove one point of a layer under `pattern`: the pattern's total over the
+/// damage that gets through. Mirrors DogmaKit's `HitPoints.effective(resonance:damagePattern:)`.
+function multiplier(resonance, pattern) {
+  const through = damageTypes.reduce((total, type) => total + resonance[type.key] * pattern[type.key], 0);
+  return sum(pattern) / Math.max(through, 1e-6);
+}
+
+const rackTitles = {
+  mode: "Tactical Mode", hi: "High Slots", med: "Medium Slots", low: "Low Slots",
+  rig: "Rig Slots", subsystem: "Subsystems", service: "Service Slots",
+};
+const rackOrder = ["mode", "hi", "med", "low", "rig", "subsystem", "service"];
+const emptyTitles = {
+  mode: "No tactical mode", hi: "Empty high slot", med: "Empty medium slot", low: "Empty low slot",
+  rig: "Empty rig slot", subsystem: "Empty subsystem slot", service: "Empty service slot",
+};
+const squadronTitles = {
+  light: "Light Fighters", heavy: "Heavy Fighters", support: "Support Fighters",
+  standupLight: "Standup Light Fighters", standupHeavy: "Standup Heavy Fighters",
+  standupSupport: "Standup Support Fighters",
+};
+const sensorNames = { radar: "Radar", ladar: "Ladar", magnetometric: "Magnetometric", gravimetric: "Gravimetric" };
+const stateNames = { offline: "Offline", online: "Online", active: "Active", overloaded: "Overheated" };
+const stateRank = { offline: 0, online: 1, active: 2, overloaded: 3 };
+
+/// Offline and online are rings (faint and yellow), active and overheated are checkmarks (green and red).
+const ring = `<circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/>`;
+const check = `<path d="M2 7.5l3.2 3.2L12 3.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+const stateGlyphs = { offline: ring, online: ring, active: check, overloaded: check };
+
+const stateIcon = (state, title = "") =>
+  `<svg class="state ${state}" viewBox="0 0 14 14" aria-hidden="true">${title ? `<title>${title}</title>` : ""}${stateGlyphs[state] ?? ""}</svg>`;
+
+const view = {
+  sheets: null,
+  index: 0,
+  /// "effective" or "raw" hit points and repair rates, for the whole page.
+  mode: "effective",
+  pattern: 0,
+  /// The damage block shows DPS per type, or each type's share.
+  shares: false,
+  tab: "fit",
+  /// CCP's average prices by type id; `null` while loading, `false` when they could not be loaded.
+  prices: null,
+};
+
+const fit = () => view.sheets.fits[view.index];
+
+// MARK: - Rendering helpers
+
+function section(title, body, { spans = "", foot = "" } = {}) {
+  return `<section class="section"><h2><span>${title}</span>${spans ? `<span class="spans">${spans}</span>` : ""}</h2>`
+    + `<div class="card">${body}</div>${foot ? `<p class="foot">${foot}</p>` : ""}</section>`;
+}
+
+const row = (name, value, valueClass = "") =>
+  `<div class="row"><span class="name">${name}</span><span class="val ${valueClass}">${value}</span></div>`;
+
+const overClass = usage => usage.used > usage.total ? "over" : "";
+const count = capacity => `<span class="${overClass(capacity)}">${capacity.used}/${capacity.total}</span>`;
+
+/// A figure on a track filled to `share` (0…1) in `color`.
+const meter = (share, color, text) =>
+  `<div class="meter"><i style="width:${Math.min(Math.max(share, 0), 1) * 100}%;background:${color}"></i>`
+  + `<span class="v">${text}</span></div>`;
+
+function damageBlock(profile, { shares, toggle }) {
+  const total = sum(profile);
+  const cells = damageTypes.map(type => {
+    const value = profile[type.key];
+    const share = total > 0 ? value / total : 0;
+    const text = shares ? percent(share) : dps(value);
+    return `<div><div class="k" style="color:${type.color}">${type.title}</div>`
+      + `${meter(share, type.color, text)}</div>`;
+  }).join("");
+  return `<div class="dmg${toggle ? " toggle" : ""}"${toggle ? ' data-action="shares" title="Switch between DPS and shares"' : ""}>${cells}</div>`;
+}
+
+function splitBar(profile) {
+  const total = sum(profile);
+  return `<div class="split">${damageTypes.map(type =>
+    `<i style="width:${total > 0 ? profile[type.key] / total * 100 : 0}%;background:${type.color}"></i>`).join("")}</div>`;
+}
+
+// MARK: - Header
+
+const copyIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">`
+  + `<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 10h1.5"/></svg>`;
+
+function header(sheet) {
+  const options = view.sheets.fits.length > 1
+    ? `<select class="fits" data-action="fit">${view.sheets.fits.map((f, i) =>
+        `<option value="${i}"${i === view.index ? " selected" : ""}>${esc(f.ship.name)}${f.name ? ` — ${esc(f.name)}` : ""}</option>`).join("")}</select>`
+    : "";
+  return `<header class="top">
+      <img src="${render(sheet.ship.typeID)}" alt="">
+      <div class="title">
+        <div class="sub">${esc(sheet.shipGroupName)}</div>
+        <h1>${esc(sheet.ship.name)}</h1>
+        ${sheet.name ? `<div class="fitname">${esc(sheet.name)}</div>` : ""}
+      </div>
+      <div class="copies">
+        <button class="copy" data-action="copy" data-format="eft">${copyIcon}<span>Copy EFT</span></button>
+        <button class="copy" data-action="copy" data-format="dna" title="Link to paste in the game's chat">${copyIcon}<span>Copy DNA</span></button>
+      </div>
+    </header>${options}`;
+}
+
+function hitPointsShown(sheet) {
+  const hp = sheet.hitPoints;
+  if (view.mode === "raw") return hp;
+  const pattern = patterns[view.pattern].vector;
+  return {
+    shield: hp.shield * multiplier(sheet.resonance.shield, pattern),
+    armor: hp.armor * multiplier(sheet.resonance.armor, pattern),
+    hull: hp.hull * multiplier(sheet.resonance.hull, pattern),
+  };
+}
+
+const unit = () => view.mode === "raw" ? "HP" : "EHP";
+
+function strip(sheet) {
+  const hp = hitPointsShown(sheet);
+  const cap = sheet.capacitor;
+  const stable = cap.stableLevel != null;
+  const modes = [["raw", "HP"], ["effective", "EHP"]].map(([mode, title]) =>
+    `<button data-action="mode" data-mode="${mode}" class="${view.mode === mode ? "on" : ""}">${title}</button>`).join("");
+  return `<section class="section"><h2><span>Summary</span></h2><div class="strip">
+      <div><div class="label">DPS</div><div class="value">${dps(sum(sheet.damage.dps))}</div>
+        <div class="unit">Volley ${num(sum(sheet.damage.volley), 0)}</div></div>
+      <div><div class="label"><span>${unit()}</span><span class="switch">${modes}</span></div>
+        <div class="value">${compact(hp.shield + hp.armor + hp.hull)}</div>
+        <div class="unit">${view.mode === "raw" ? "Raw" : esc(patterns[view.pattern].title)}</div></div>
+      <div><div class="label">Cap</div>
+        <div class="value" style="color:var(${stable ? "--ok" : "--warn"})">${stable ? percent(cap.stableLevel) : clock(cap.lastsFor)}</div>
+        <div class="unit">${stable ? "Stable" : "Lasts"}</div></div>
+    </div></section>`;
+}
+
+function tabs() {
+  const buttons = [["fit", "Fit"], ["stats", "Stats"]].map(([tab, title]) =>
+    `<button data-action="tab" data-tab="${tab}" class="${view.tab === tab ? "on" : ""}">${title}</button>`).join("");
+  return `<nav class="tabs"><div class="seg">${buttons}</div>
+    <button class="copy" data-action="copy" data-format="eft" aria-label="Copy EFT">${copyIcon}<span>EFT</span></button>
+    <button class="copy" data-action="copy" data-format="dna" aria-label="Copy DNA chat link" title="Link to paste in the game's chat">${copyIcon}<span>DNA</span></button></nav>`;
+}
+
+// MARK: - Fit column
+
+function resourceBars(sheet) {
+  const r = sheet.resources;
+  const bar = (title, usage, suffix = "") => {
+    const fill = usage.total > 0 ? Math.min(usage.used / usage.total, 1) * 100 : (usage.used > 0 ? 100 : 0);
+    return `<div class="bar ${overClass(usage)}"><div class="head"><span>${title}</span>`
+      + `<span>${resource(usage.used)}/${resource(usage.total)}${suffix}</span></div>`
+      + `<div class="track"><div class="fill" style="width:${fill}%"></div></div></div>`;
+  };
+  return `<div class="card"><div class="bars">${[
+    bar("CPU", r.cpu),
+    bar("PowerGrid", r.powerGrid),
+    bar("Calibration", r.calibration),
+    bar("Drone Bay", r.droneBay, " m³"),
+    bar("Bandwidth", r.droneBandwidth),
+    bar("In Space", r.dronesInSpace),
+  ].join("")}</div></div>`;
+}
+
+function moduleRow(module) {
+  const subtitle = module.charge
+    ? `${esc(module.charge.item.name)} ×${module.charge.count}`
+    : module.mutaplasmid ? `Mutated · ${esc(module.mutaplasmid.name)}` : "";
+  const degraded = stateRank[module.effectiveState] < stateRank[module.state];
+  const state = module.slot === "rig" || module.slot === "subsystem" || module.slot === "mode" ? "none" : module.effectiveState;
+  return `<div class="item">
+      ${stateIcon(state, stateNames[module.effectiveState])}
+      <img src="${icon(module.item.typeID)}" alt="" loading="lazy">
+      <div class="text"><div>${esc(module.item.name)}</div>${subtitle ? `<div class="subtitle">${subtitle}</div>` : ""}</div>
+      ${degraded ? `<span class="alert" title="Cannot be ${stateNames[module.state].toLowerCase()}: the fit lacks resources">▲</span>` : ""}
+    </div>`;
+}
+
+const emptyRow = slot => `<div class="item empty">${stateIcon("none")}<span class="slot"></span><span>${emptyTitles[slot]}</span></div>`;
+
+function racks(sheet) {
+  const r = sheet.resources;
+  return rackOrder.map(slot => {
+    const capacity = r.slots[slot];
+    const modules = sheet.modules.filter(m => m.slot === slot);
+    if (!capacity && modules.length === 0) return "";
+    const total = capacity ? capacity.total : 0;
+    const rows = modules.map(moduleRow).join("")
+      + Array.from({ length: Math.max(total - modules.length, 0) }, () => emptyRow(slot)).join("");
+    let spans = capacity ? count(capacity) : "";
+    if (slot === "hi") {
+      spans += ` <span class="faint">·</span> Turrets ${count(r.turrets)} <span class="faint">·</span> Launchers ${count(r.launchers)}`;
+    }
+    return section(rackTitles[slot], rows, { spans });
+  }).join("");
+}
+
+function droneRow(drone) {
+  return `<div class="item">
+      <img src="${icon(drone.item.typeID)}" alt="" loading="lazy">
+      <div class="text"><div>${esc(drone.item.name)}</div>
+        <div class="subtitle">×${drone.count}</div></div>
+      <span class="badge ${drone.isActive ? "space" : ""}">${drone.isActive ? "In space" : "In bay"}</span>
+    </div>`;
+}
+
+function drones(sheet) {
+  const r = sheet.resources;
+  let html = "";
+  const plain = sheet.drones.filter(d => !d.squadron);
+  if (r.droneBay.total > 0 || plain.length > 0) {
+    const rows = plain.length ? plain.map(droneRow).join("") : `<div class="item empty">No drones</div>`;
+    html += section("Drones", rows, { spans: `${count(r.dronesInSpace)} in space` });
+  }
+  for (const [squadron, capacity] of Object.entries(r.squadrons)) {
+    const fighters = sheet.drones.filter(d => d.squadron === squadron);
+    const rows = fighters.length ? fighters.map(droneRow).join("") : `<div class="item empty">No fighters</div>`;
+    html += section(squadronTitles[squadron] ?? squadron, rows,
+      { spans: `${count(capacity)} <span class="faint">·</span> Tubes ${count(r.fighterTubes)}` });
+  }
+  return html;
+}
+
+function items(title, list) {
+  if (!list.length) return "";
+  return section(title, list.map(item => `<div class="item">
+      <img src="${icon(item.typeID)}" alt="" loading="lazy"><div class="text"><div>${esc(item.name)}</div></div></div>`).join(""));
+}
+
+function fitColumn(sheet) {
+  const warnings = view.sheets.warnings.length
+    ? `<section class="section"><h2><span>Import notes</span></h2><div class="card warnings">${
+        view.sheets.warnings.map(w => `<div class="row">${esc(w)}</div>`).join("")}</div></section>`
+    : "";
+  return `${warnings}<section class="section"><h2><span>Resources</span></h2>${resourceBars(sheet)}</section>`
+    + racks(sheet) + drones(sheet) + items("Implants", sheet.implants) + items("Boosters", sheet.boosters);
+}
+
+// MARK: - Stats column
+
+function patternSection() {
+  if (view.mode !== "effective") return "";
+  const options = patterns.map((p, i) => `<option value="${i}"${i === view.pattern ? " selected" : ""}>${esc(p.title)}</option>`).join("");
+  return section("Damage Pattern",
+    `<div class="pattern"><select data-action="pattern" aria-label="Damage pattern">${options}</select></div>`
+    + damageBlock(patterns[view.pattern].vector, { shares: true, toggle: false }));
+}
+
+function tankSection(sheet) {
+  const hp = hitPointsShown(sheet);
+  const layers = [["Shield", "shield"], ["Armor", "armor"], ["Structure", "hull"]];
+  const head = `<tr><th></th>${damageTypes.map(t => `<th style="color:${t.color}">${t.title}</th>`).join("")}<th>${unit()}</th></tr>`;
+  const body = layers.map(([title, key]) => {
+    const cells = damageTypes.map(type => {
+      const resist = 1 - sheet.resonance[key][type.key];
+      return `<td>${meter(resist, type.color, percent(resist))}</td>`;
+    }).join("");
+    return `<tr><td>${title}</td>${cells}<td>${num(hp[key], 0)}</td></tr>`;
+  }).join("");
+  const total = hp.shield + hp.armor + hp.hull;
+  const columns = `<colgroup><col class="layer">${damageTypes.map(() => "<col>").join("")}<col class="hp"></colgroup>`;
+  return section("Tank", `<table class="matrix tank">${columns}${head}${body}</table>`, { spans: `${unit()} ${num(total, 0)}` });
+}
+
+function repairSection(sheet) {
+  const pattern = patterns[view.pattern].vector;
+  const shown = rates => {
+    if (view.mode === "raw") return rates;
+    const shield = multiplier(sheet.resonance.shield, pattern);
+    return {
+      passiveShield: rates.passiveShield * shield,
+      shield: rates.shield * shield,
+      armor: rates.armor * multiplier(sheet.resonance.armor, pattern),
+      hull: rates.hull * multiplier(sheet.resonance.hull, pattern),
+    };
+  };
+  const peak = shown(sheet.tank.peak);
+  const sustained = shown(sheet.tank.sustained);
+  const rows = [
+    ["Shield passive regen", "passiveShield", false],
+    ["Shield boost", "shield", peak.shield <= 0],
+    ["Armor repair", "armor", peak.armor <= 0],
+    ["Structure repair", "hull", peak.hull <= 0],
+  ];
+  const figure = (value, missing) => missing ? "—" : num(value, 1, 1);
+  const body = rows.map(([title, key, missing]) =>
+    `<tr class="${missing ? "faint" : ""}"><td>${title}${missing ? `<div class="faint" style="font-size:11px">No module fitted</div>` : ""}</td>`
+    + `<td>${figure(peak[key], missing)}</td><td>${figure(sustained[key], missing)}</td></tr>`).join("");
+  const totals = rates => rates.passiveShield + rates.shield + rates.armor + rates.hull;
+  return section("Repair",
+    `<table class="matrix"><tr><th></th><th>Peak</th><th>Sustained</th></tr>${body}`
+    + `<tr class="total"><td>Total</td><td>${num(totals(peak), 1, 1)}</td><td>${num(totals(sustained), 1, 1)}</td></tr></table>`
+    + `<div class="note">Peak is with every repairer cycling; sustained is what the capacitor keeps running. `
+    + `Shield passive regen peaks at 25% shield.</div>`,
+    { spans: `${unit()}/s` });
+}
+
+function damageSection(sheet) {
+  const d = sheet.damage;
+  const r = sheet.resources;
+  const sources = [
+    [`Turrets · ${r.turrets.used}`, d.turrets],
+    [`Launchers · ${r.launchers.used}`, d.launchers],
+    [`Drones · ${r.dronesInSpace.used} in space`, d.drones],
+    ["Fighters", d.fighters],
+    ["Other modules", d.otherModules],
+  ].filter(([, profile]) => sum(profile) > 0);
+  const body = `<div class="row"><span class="name">Total</span><span class="val big">${dps(sum(d.dps))}<small>DPS</small></span></div>`
+    + damageBlock(d.dps, { shares: view.shares, toggle: true })
+    + sources.map(([title, profile]) => `<div class="source">${row(title, `${dps(sum(profile))} DPS`)}${splitBar(profile)}</div>`).join("");
+  return section("Damage", body, { foot: "Tap the damage types to switch between damage per second and each type's share." });
+}
+
+function capacitorSection(sheet) {
+  const cap = sheet.capacitor;
+  const stable = cap.stableLevel != null;
+  const tone = stable ? "ok" : "warn";
+  const sign = cap.delta > 0 ? "+" : "";
+  return section("Capacitor",
+    row("Capacity", `${num(cap.capacity, 1)} GJ`)
+    + row("Recharge", seconds(cap.rechargeTime))
+    + row("Delta", `<span style="color:var(--${tone})">${sign}${num(cap.delta, 1)} GJ/s</span>`)
+    + (stable
+      ? row("Stable at", `<span style="color:var(--${tone})">${percent(cap.stableLevel)}</span>`)
+      : row("Lasts", `<span style="color:var(--${tone})">${seconds(cap.lastsFor)}</span>`)));
+}
+
+function fuelSection(sheet) {
+  const fuel = sheet.fuel;
+  if (!fuel) return "";
+  const services = fuel.services.map(s => row(esc(s.item.name), `${num(s.perHour, 0)}/h`)).join("");
+  return section("Fuel",
+    row("Per hour", `${num(fuel.perHour, 0)} blocks`)
+    + row("Per day", `${num(fuel.perHour * 24, 0)} blocks`)
+    + row("Per 30 days", `${num(fuel.perHour * 24 * 30, 0)} blocks`)
+    + row("To online", `${num(fuel.toOnline, 0)} blocks`)
+    + services);
+}
+
+function navigationSection(sheet) {
+  const n = sheet.navigation;
+  return section("Navigation",
+    row("Max velocity", `${num(n.maxVelocity, 0)} m/s`)
+    + row("Align time", n.alignTime > 0 ? seconds(n.alignTime) : "—")
+    + row("Signature radius", distance(n.signatureRadius))
+    + row("Mass", `${num(n.mass, 0)} kg`)
+    + row("Warp speed", `${num(n.warpSpeed, 2)} AU/s`)
+    + row("Warp range", n.maxWarpDistance > 0 ? `${num(n.maxWarpDistance, 1)} AU` : "—"));
+}
+
+function targetingSection(sheet) {
+  const t = sheet.targeting;
+  const sensor = num(t.sensorStrength, 1) + (t.sensorType ? ` ${sensorNames[t.sensorType].toUpperCase()}` : "");
+  return section("Targeting",
+    row("Range", distance(t.maxTargetRange))
+    + row("Scan resolution", `${num(t.scanResolution, 0)} mm`)
+    + row("Max targets", num(t.maxLockedTargets, 0))
+    + row("Sensor", sensor));
+}
+
+function resourcesSection(sheet) {
+  const r = sheet.resources;
+  const usage = (title, value, suffix = "") =>
+    row(title, `${resource(value.used)} / ${resource(value.total)}${suffix}`, overClass(value));
+  const capacity = (title, value) => row(title, `${value.used} / ${value.total}`, overClass(value));
+  const slots = rackOrder.filter(slot => slot !== "mode" && r.slots[slot])
+    .map(slot => count(r.slots[slot])).join(` <span class="faint">·</span> `);
+  const mode = sheet.modules.find(m => m.slot === "mode");
+  return section("Resources",
+    usage("CPU", r.cpu, " tf")
+    + usage("PowerGrid", r.powerGrid, " MW")
+    + usage("Calibration", r.calibration)
+    + usage("Drone bay", r.droneBay, " m³")
+    + usage("Bandwidth", r.droneBandwidth, " Mbit/s")
+    + capacity("Drones in space", r.dronesInSpace)
+    + (r.fighterTubes.total > 0 || r.fighterTubes.used > 0
+      ? usage("Fighter hangar", r.fighterHangar, " m³") + capacity("Fighter tubes", r.fighterTubes)
+      : "")
+    + row("Slots", slots || "—")
+    + (mode ? row("Tactical mode", esc(mode.item.name)) : "")
+    + capacity("Turret hardpoints", r.turrets)
+    + capacity("Launcher hardpoints", r.launchers)
+    + row("Cargo hold", `${num(sheet.cargoCapacity, 1)} m³`));
+}
+
+/// The fit's worth at CCP's average prices, by kind of item; charges count a full load.
+function costSection(sheet) {
+  const groups = [
+    ["Hull", [[sheet.ship.typeID, 1]]],
+    ["Modules", sheet.modules.map(m => [m.item.typeID, 1])],
+    ["Charges", sheet.modules.filter(m => m.charge).map(m => [m.charge.item.typeID, Math.max(m.charge.count, 1)])],
+    ["Drones", sheet.drones.map(d => [d.item.typeID, d.count])],
+    ["Implants", sheet.implants.map(i => [i.typeID, 1])],
+    ["Boosters", sheet.boosters.map(b => [b.typeID, 1])],
+  ];
+  if (!view.prices) {
+    const text = view.prices === false ? "Average market prices could not be loaded." : "Loading average market prices…";
+    return section("Cost", row("Total", "—"), { foot: text });
+  }
+  const unpriced = new Set();
+  const lines = [];
+  for (const [title, entries] of groups) {
+    const quantity = entries.reduce((total, [, n]) => total + n, 0);
+    if (quantity === 0) continue;
+    let value = 0;
+    for (const [typeID, n] of entries) {
+      const price = view.prices.get(typeID);
+      if (price == null) unpriced.add(typeID); else value += price * n;
+    }
+    lines.push([title, quantity, value]);
+  }
+  const total = lines.reduce((t, [, , value]) => t + value, 0);
+  const partial = unpriced.size > 0;
+  const body = `<div class="row"><span class="name">${partial ? "Total (partial)" : "Total"}</span>`
+    + `<span class="val big" style="${partial ? "color:var(--warn)" : ""}">${isk(total)}<small>ISK</small></span></div>`
+    + lines.map(([title, quantity, value]) => row(`${title} · ${quantity}`, isk(value))).join("");
+  const foot = partial
+    ? `Est. ISK · Average market prices · ${unpriced.size} item types without a price are not counted.`
+    : "Est. ISK · Average market prices";
+  return section("Cost", body, { foot });
+}
+
+function statsColumn(sheet) {
+  return strip(sheet) + patternSection() + tankSection(sheet) + repairSection(sheet) + damageSection(sheet)
+    + capacitorSection(sheet) + fuelSection(sheet) + navigationSection(sheet) + targetingSection(sheet)
+    + resourcesSection(sheet) + costSection(sheet);
+}
+
+// MARK: - Page
+
+const page = document.getElementById("page");
+
+function draw() {
+  const sheet = fit();
+  document.title = `${sheet.ship.name}${sheet.name ? ` — ${sheet.name}` : ""}`;
+  page.innerHTML = header(sheet) + tabs()
+    + `<main class="cols" data-tab="${view.tab}"><div class="col" id="fit">${fitColumn(sheet)}</div>`
+    + `<div class="col" id="stats">${statsColumn(sheet)}</div></main>`
+    + `<footer>All skills at level V · calculated in your browser by <a href="https://github.com/artem-shimanski/DogmaKit">DogmaKit</a></footer>`;
+}
+
+/// The fit as an in-game chat link, `<url=fitting:DNA>name</url>`; the name drops the markup's angle brackets.
+function chatLink(sheet) {
+  const name = (sheet.name || sheet.ship.name).replace(/[<>]/g, "");
+  return `<url=fitting:${sheet.dna}>${name}</url>`;
+}
+
+/// Copies the fit by the button's `data-format`: EFT text, or DNA as a link to paste in the game's chat.
+async function copyFit(button) {
+  const text = button.dataset.format === "dna" ? chatLink(fit()) : fit().eft;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Without the async clipboard (plain http, older browsers) a selected textarea still copies.
+    const area = Object.assign(document.createElement("textarea"), { value: text });
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.append(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+  for (const copy of document.querySelectorAll(`.copy[data-format="${button.dataset.format}"]`)) {
+    copy.classList.add("done");
+    copy.querySelector("span").textContent = "Copied";
+  }
+  setTimeout(draw, 1500);
+}
+
+page.addEventListener("click", event => {
+  const target = event.target.closest("[data-action]");
+  if (!target) return;
+  switch (target.dataset.action) {
+    case "copy": copyFit(target); return;
+    case "mode": view.mode = target.dataset.mode; break;
+    case "shares": view.shares = !view.shares; break;
+    case "tab": view.tab = target.dataset.tab; window.scrollTo({ top: 0 }); break;
+    default: return;
+  }
+  draw();
+});
+
+page.addEventListener("change", event => {
+  const target = event.target.closest("[data-action]");
+  if (!target) return;
+  if (target.dataset.action === "pattern") view.pattern = Number(target.value);
+  if (target.dataset.action === "fit") view.index = Number(target.value);
+  draw();
+});
+
+async function loadPrices() {
+  try {
+    const response = await fetch("https://esi.evetech.net/latest/markets/prices/?datasource=tranquility");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const list = await response.json();
+    view.prices = new Map(list.filter(p => p.average_price != null).map(p => [p.type_id, p.average_price]));
+  } catch {
+    view.prices = false;
+  }
+  if (view.sheets) draw();
+}
+
+function showMessage(text, isError) {
+  page.innerHTML = `<p class="message${isError ? " error" : ""}">${esc(text)}</p>`;
 }
 
 const eft = fitFromHash();
 if (eft) {
-  document.getElementById("eft").textContent = eft;
-  run(eft).catch(error => { status.textContent = String(error); });
+  loadPrices();
+  calculate(eft)
+    .then(sheets => { view.sheets = sheets; draw(); })
+    .catch(error => showMessage(error.message ?? String(error), true));
 } else {
-  status.textContent = "No fit in the link.";
+  showMessage("No fit in the link.", true);
 }
 </script>
 </body>

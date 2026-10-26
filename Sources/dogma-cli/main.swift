@@ -2,8 +2,9 @@
 //  main.swift
 //  dogma-cli
 //
-//  Usage: dogma-cli [--json] [file]
+//  Usage: dogma-cli [--json | --sheet] [file]
 //  Reads a fit (EFT, DNA or in-game XML) from the file or from standard input and prints its stats.
+//  --json prints the stats as JSON; --sheet prints the full sheet (contents, resources, raw stats) as JSON.
 //
 
 #if os(WASI)
@@ -17,7 +18,8 @@ import FitAnalysis
 
 var arguments = Array(CommandLine.arguments.dropFirst())
 let json = arguments.contains("--json")
-arguments.removeAll { $0 == "--json" }
+let sheet = arguments.contains("--sheet")
+arguments.removeAll { $0 == "--json" || $0 == "--sheet" }
 
 func fail(_ message: String) -> Never {
     #if os(WASI)
@@ -52,22 +54,38 @@ if let path = arguments.first {
     text = readStandardInput()
 }
 
+func report(_ error: Error) -> Never {
+    switch error {
+    case FitAnalysisError.noFitFound: fail("No fit found")
+    case FitAnalysisError.rejected(let reason): fail("Fit rejected: \(reason)")
+    default: fail("Cannot load game data: \(error)")
+    }
+}
+
+func printJSON(_ value: some Encodable) throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    print(String(decoding: try encoder.encode(value), as: UTF8.self))
+}
+
+if sheet {
+    do {
+        try printJSON(try await FitAnalyzer().sheets(text))
+    } catch {
+        report(error)
+    }
+    exit(0)
+}
+
 let analysis: FitAnalysis
 do {
     analysis = try await FitAnalyzer().analyze(text)
-} catch let error as FitAnalysisError {
-    switch error {
-    case .noFitFound: fail("No fit found")
-    case .rejected(let reason): fail("Fit rejected: \(reason)")
-    }
 } catch {
-    fail("Cannot load game data: \(error)")
+    report(error)
 }
 
 if json {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    print(String(decoding: try encoder.encode(analysis), as: UTF8.self))
+    try printJSON(analysis)
     exit(0)
 }
 

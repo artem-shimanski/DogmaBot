@@ -13,21 +13,18 @@ enum FitCard {
     /// about 10 components and 1700 characters.
     static let maxFits = 2
 
+    /// Import warnings stay out of the card to keep it short; the fit page lists them.
     /// - Parameter webPage: the fit page; each card links to it with the fit in the URL fragment.
-    static func components(for analysis: FitAnalysis, webPage: String? = nil) -> [Interaction.ActionRow.Component] {
+    static func components(for analysis: FitAnalysis, webPage: String) -> [Interaction.ActionRow.Component] {
         var components = analysis.fits.prefix(maxFits).map { card(for: $0, webPage: webPage) }
-        var notes = analysis.warnings
         if analysis.fits.count > maxFits {
-            notes.append("\(analysis.fits.count - maxFits) more fits not shown")
-        }
-        if let notes = CardText.notes(notes) {
-            components.append(notes)
+            components.append(.textDisplay(.init(content: "-# \(analysis.fits.count - maxFits) more fits not shown")))
         }
         components.append(CardText.footer)
         return components
     }
 
-    static func card(for fit: FitSummary, webPage: String? = nil) -> Interaction.ActionRow.Component {
+    static func card(for fit: FitSummary, webPage: String) -> Interaction.ActionRow.Component {
         let header = Interaction.ActionRow.Section(
             components: [.textDisplay(.init(content: title(for: fit, webPage: webPage)))],
             accessory: .thumbnail(.init(media: CardText.render(of: fit), description: fit.shipName))
@@ -40,9 +37,7 @@ enum FitCard {
                 .textDisplay(.init(content: [offense(fit), defense(fit), tank(fit)].joined(separator: "\n"))),
                 .separator(.init(divider: true, spacing: .small)),
                 .textDisplay(.init(content: [capacitor(fit), navigation(fit), targeting(fit), self.fitting(fit)]
-                    .joined(separator: "\n"))),
-                .separator(.init(divider: true, spacing: .small)),
-                .textDisplay(.init(content: CardText.eftBlock(fit.eft)))
+                    .joined(separator: "\n")))
             ],
             accent_color: CardText.isOverloaded(fit) ? CardText.overloadedColor : CardText.normalColor
         ))
@@ -50,7 +45,7 @@ enum FitCard {
 
     // MARK: - Sections
 
-    private static func title(for fit: FitSummary, webPage: String?) -> String {
+    private static func title(for fit: FitSummary, webPage: String) -> String {
         var lines = ["## \(fit.shipName)"]
         if let name = fit.name, !name.isEmpty {
             lines.append("**\(CardText.escaped(name))**")
@@ -58,9 +53,7 @@ enum FitCard {
         if !fit.shipGroupName.isEmpty {
             lines.append("-# \(fit.shipGroupName)")
         }
-        if let webPage {
-            lines.append("[Open in browser](\(CardText.webLink(webPage, eft: fit.eft)))")
-        }
+        lines.append(CardText.openLink(webPage, fit: fit))
         return lines.joined(separator: "\n")
     }
 

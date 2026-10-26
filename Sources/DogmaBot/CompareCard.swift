@@ -14,11 +14,9 @@ enum CompareCard {
     private static let valueWidth = 8
     private static let changeWidth = 9
 
-    /// Custom id of the button that sends both fits in EFT. The fits travel in the card itself, in the URLs of the
-    /// ship renders (see `FitLink`).
-    static let eftButtonID = "eft"
-
-    static func components(for comparison: FitComparison, notes: [String]) -> [Interaction.ActionRow.Component] {
+    /// - Parameter webPage: the fit page; each fit links to it with the fit in the URL fragment.
+    static func components(for comparison: FitComparison,
+                           webPage: String) -> [Interaction.ActionRow.Component] {
         let a = comparison.a
         let b = comparison.b
         let accent = CardText.isOverloaded(a) || CardText.isOverloaded(b)
@@ -29,43 +27,29 @@ enum CompareCard {
             .container(.init(
                 components: [
                     .textDisplay(.init(content: "## Compare")),
-                    header("A", a),
-                    header("B", b),
+                    header("A", a, webPage: webPage),
+                    header("B", b, webPage: webPage),
                     .separator(.init(divider: true, spacing: .small)),
-                    .textDisplay(.init(content: table(comparison))),
-                    .separator(.init(divider: true, spacing: .small)),
-                    .section(.init(
-                        components: [.textDisplay(.init(content: "-# Both fits in EFT, visible only to you"))],
-                        accessory: .button(.init(style: .secondary, label: "Show EFT", custom_id: eftButtonID))
-                    ))
+                    .textDisplay(.init(content: table(comparison)))
                 ],
                 accent_color: accent
             ))
         ]
-        if let notes = CardText.notes(notes) {
-            components.append(notes)
-        }
         components.append(CardText.footer)
         return components
     }
 
     /// One line per fit with a small ship render; a media gallery would stretch the renders to the card width.
-    private static func header(_ side: String, _ fit: FitSummary) -> Interaction.ActionRow.Component {
+    private static func header(_ side: String, _ fit: FitSummary, webPage: String) -> Interaction.ActionRow.Component {
         var text = "**\(side)** \(fit.shipName)"
         if let name = fit.name, !name.isEmpty {
             text += "\n-# \(CardText.escaped(name))"
         }
+        text += "\n\(CardText.openLink(webPage, fit: fit))"
         return .section(.init(
             components: [.textDisplay(.init(content: text))],
-            accessory: .thumbnail(.init(media: FitLink.render(of: fit), description: fit.shipName))
+            accessory: .thumbnail(.init(media: CardText.render(of: fit), description: fit.shipName))
         ))
-    }
-
-    /// Fits in EFT for the reply to the EFT button, labelled A, B, … in card order.
-    static func eftComponents(for fits: [String]) -> [Interaction.ActionRow.Component] {
-        zip(["A", "B"], fits).map { label, eft in
-            .textDisplay(.init(content: "**\(label)**\n\(CardText.eftBlock(eft))"))
-        }
     }
 
     /// Values of both fits and the change from A to B; the arrow marks the side with the better value.

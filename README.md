@@ -27,26 +27,54 @@ invokes. It can be installed to a server or to a user account; in the latter cas
 2. Run the bot:
 
    ```
-   DISCORD_TOKEN=<token> swift run -c release DogmaBot
+   DISCORD_TOKEN=<token> DOGMA_WEB_URL=<fit page address> swift run -c release DogmaBot
    ```
 
 | Variable | |
 |---|---|
 | `DISCORD_TOKEN` | Bot token. Required. |
 | `DISCORD_GUILD_ID` | Registers the commands on this server only. Server commands update instantly, which is convenient during development; without the variable the commands are registered globally. |
-| `DOGMA_WEB_URL` | Address of the fit page (see below). When set, fit cards link to it. |
+| `DOGMA_WEB_URL` | Address of the fit page (see below). Required: `/fit` and `/compare` cards link to each fit on the page instead of printing it. |
+
+## Deploying
+
+The repository's `Dockerfile` builds the bot for Linux, so any platform that builds a container from a GitHub
+repository can run it (Railway, Render, Koyeb, DigitalOcean App Platform and the like):
+
+1. Create a service from `https://github.com/artem-shimanski/DogmaBot`; the platform finds the `Dockerfile`.
+2. Choose a background worker if the platform asks: the bot keeps a connection to Discord and serves no HTTP, so
+   it needs neither a port nor a public address.
+3. Set `DISCORD_TOKEN` and `DOGMA_WEB_URL` (the fit page, `https://artem-shimanski.github.io/DogmaBot/`).
+
+One instance is enough, and only one should run: each running copy would answer every command. The first build takes
+several minutes. `.github/workflows/docker.yml` builds the same image and runs the tests on Linux for every push.
+
+To run the image yourself:
+
+```
+docker build -t dogmabot .
+docker run -e DISCORD_TOKEN=<token> -e DOGMA_WEB_URL=https://artem-shimanski.github.io/DogmaBot/ dogmabot
+```
 
 ## Fit page
 
 `Web/` holds a page that runs the same calculation in the browser: `FitAnalysis` and DogmaKit compiled to
-WebAssembly. The fit travels in the URL fragment (`#eft=<base64url of the EFT text>`), which browsers do not send
-to the server, so any static hosting works. `Web/serve.py` serves the directory locally, sending pre-compressed
+WebAssembly. The fit travels in the URL fragment (`#eft=<base64url of the fit text>` in EFT, DNA or in-game XML, or
+`#dna=<DNA string>`), which browsers do not send to the server, so any static hosting works. The page shows what the fit carries rack by rack and its full stats:
+tank against a chosen damage pattern, repair, damage by source, capacitor, navigation, targeting, resources and cost at
+CCP's average prices (fetched from ESI). On a wide screen the fit and the stats sit side by side; on a phone they
+are two tabs. Both layouts have buttons that copy the fit in EFT and as a DNA link for the game's chat; DNA has no room for implants and
+boosters. `Web/serve.py` serves the directory locally, sending pre-compressed
 files when the browser accepts gzip.
 
 ```
-Scripts/build-web.sh        # builds Web/build; needs swiftly with the Swift toolchain and its Wasm SDK
+Scripts/build-web.sh        # builds Web/build; needs the Swift 6.4.1 toolchain (via swiftly or in PATH) and its Wasm SDK
 python3 Web/serve.py 8080
 ```
+
+`.github/workflows/pages.yml` builds the page on every push to `main` and publishes it on GitHub Pages; enable Pages
+in the repository settings with "GitHub Actions" as the source. The published address is the `DOGMA_WEB_URL` for
+the bot.
 
 ## Command-line tool
 
@@ -55,6 +83,7 @@ python3 Web/serve.py 8080
 ```
 swift run dogma-cli fit.txt
 pbpaste | swift run dogma-cli --json
+swift run dogma-cli --sheet fit.txt   # full sheet as JSON, what the fit page reads
 ```
 
 ## Package layout

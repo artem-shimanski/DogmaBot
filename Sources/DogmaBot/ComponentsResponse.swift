@@ -12,10 +12,8 @@ import DiscordBM
 struct ComponentsResponse: Sendable, Encodable, ValidatablePayload {
 
     var components: [Interaction.ActionRow.Component]
-    var isEphemeral = false
 
     /// https://discord.com/developers/docs/resources/message#message-object-message-flags
-    private static let ephemeralFlag = 1 << 6
     private static let componentsV2Flag = 1 << 15
 
     /// https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-response-object-interaction-callback-type
@@ -33,7 +31,7 @@ struct ComponentsResponse: Sendable, Encodable, ValidatablePayload {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.channelMessageWithSource, forKey: .type)
         var data = container.nestedContainer(keyedBy: DataKeys.self, forKey: .data)
-        try data.encode(Self.componentsV2Flag | (isEphemeral ? Self.ephemeralFlag : 0), forKey: .flags)
+        try data.encode(Self.componentsV2Flag, forKey: .flags)
         try data.encode(components, forKey: .components)
     }
 

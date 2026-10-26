@@ -1,5 +1,5 @@
 {
-  "originHash" : "022cd573521f9e51f37d0411c632ea9116c169303fb74d251a7a001343c19aa7",
+  "originHash" : "b7dd2b8cd557823ca0a11d8bb47fe36fb3496a3236f67c2d6e639012dadd7068",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -38,12 +38,21 @@
       }
     },
     {
+      "identity" : "dogmakit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/artem-shimanski/DogmaKit.git",
+      "state" : {
+        "revision" : "29fc688c5ea0be38d7b3aba8b50811902bac33f4",
+        "version" : "0.4.0"
+      }
+    },
+    {
       "identity" : "flatbin",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/artem-shimanski/FlatBin.git",
       "state" : {
-        "revision" : "eed52b103132217203fdb9b8b76aab35a5b9b858",
-        "version" : "0.1.1"
+        "revision" : "cbf0fb5cb86c353a95045382586d2b2a28136b11",
+        "version" : "0.1.2"
       }
     },
     {

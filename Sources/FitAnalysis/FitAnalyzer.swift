@@ -19,6 +19,18 @@ public struct FitAnalysis: Sendable, Codable, Equatable {
     }
 }
 
+/// Full sheets of the fits found in a text, plus what was lost while reading it.
+public struct FitSheets: Sendable, Codable, Equatable {
+    public var fits: [FitSheet]
+    /// Human-readable notes about lines that were skipped or changed on import.
+    public var warnings: [String]
+
+    public init(fits: [FitSheet], warnings: [String]) {
+        self.fits = fits
+        self.warnings = warnings
+    }
+}
+
 public enum FitAnalysisError: Error, Sendable, Equatable {
     /// The text holds no fit in any supported format.
     case noFitFound
@@ -32,7 +44,7 @@ public struct FitAnalyzer: Sendable {
     /// Build number of the game data the stats are calculated from.
     public static let sdeBuild = SDEVersion.buildNumber
 
-    private let names: TextCatalog
+    let names: TextCatalog
     private let importer: FitImporter
     private let exporter: FitExporter
 
@@ -45,11 +57,38 @@ public struct FitAnalyzer: Sendable {
     }
 
     public func analyze(_ text: String) async throws(FitAnalysisError) -> FitAnalysis {
+        let (fits, warnings) = try await evaluate(text) { (engine, document) -> FitSummary? in
+            guard var summary = await summarize(engine) else { return nil }
+            summary.name = document.name
+            summary.eft = exporter.export(document, as: .eft).text
+            return summary
+        }
+        return FitAnalysis(fits: fits, warnings: warnings)
+    }
+
+    /// The full sheet of every fit in the text: contents, resources and raw stats.
+    public func sheets(_ text: String) async throws(FitAnalysisError) -> FitSheets {
+        let (fits, warnings) = try await evaluate(text) { (engine, document) -> FitSheet? in
+            guard var sheet = await sheet(engine) else { return nil }
+            sheet.name = document.name
+            sheet.eft = exporter.export(document, as: .eft).text
+            sheet.dna = exporter.export(document, as: .dna).text
+            return sheet
+        }
+        return FitSheets(fits: fits, warnings: warnings)
+    }
+
+    /// Loads every fit of the text into its own engine and reads it with `read`; fits it returns `nil` for
+    /// are left out.
+    private func evaluate<Result>(
+        _ text: String,
+        read: (DogmaEngine, FitDocument) async -> Result?
+    ) async throws(FitAnalysisError) -> ([Result], [String]) {
         let result = importer.load(text)
         guard !result.documents.isEmpty else { throw .noFitFound }
 
         var warnings = result.warnings.map(describe)
-        var fits: [FitSummary] = []
+        var fits: [Result] = []
         for document in result.documents {
             // A fresh engine per fit: the session is an actor, so concurrent requests do not share state.
             let engine = DogmaEngine()
@@ -59,13 +98,12 @@ public struct FitAnalyzer: Sendable {
             } catch {
                 throw .rejected(String(describing: error))
             }
-            guard var summary = await summarize(engine) else { continue }
-            summary.name = document.name
-            summary.eft = exporter.export(document, as: .eft).text
-            fits.append(summary)
+            warnings += await launchDrones(engine)
+            guard let fit = await read(engine, document) else { continue }
+            fits.append(fit)
         }
         guard !fits.isEmpty else { throw .noFitFound }
-        return FitAnalysis(fits: fits, warnings: Self.counted(warnings))
+        return (fits, Self.counted(warnings))
     }
 
     /// Stats of the first pilot's hull. The fit name and EFT text are left for the caller to fill.
@@ -114,7 +152,7 @@ public struct FitAnalyzer: Sendable {
         }
     }
 
-    private func name(_ typeID: TypeID) -> String {
+    func name(_ typeID: TypeID) -> String {
         names.name(of: typeID) ?? "#\(typeID.rawValue)"
     }
 

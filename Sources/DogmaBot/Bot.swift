@@ -6,7 +6,7 @@
 //  - DISCORD_TOKEN: the bot token (required).
 //  - DISCORD_GUILD_ID: registers commands on this server only; they update instantly, which suits development.
 //    Without it commands are registered globally.
-//  - DOGMA_WEB_URL: address of the fit page; when set, fit cards link to it.
+//  - DOGMA_WEB_URL: address of the fit page (required); cards link to it instead of printing the fits.
 //
 
 import DiscordBM
@@ -26,7 +26,10 @@ struct Bot {
         }
         let guildID = environment["DISCORD_GUILD_ID"].flatMap { $0.isEmpty ? nil : GuildSnowflake($0) }
 
-        let webPage = environment["DOGMA_WEB_URL"].flatMap { $0.isEmpty ? nil : $0 }
+        guard let webPage = environment["DOGMA_WEB_URL"], !webPage.isEmpty else {
+            logger.critical("DOGMA_WEB_URL is not set")
+            exit(1)
+        }
         let analyzer = try FitAnalyzer()
         // Interactions arrive without any intent; message content is read from the interaction itself.
         let bot = await BotGatewayManager(
@@ -47,17 +50,8 @@ struct Bot {
                 }
             }
             group.addTask {
-                for await (error, buffer) in await bot.eventFailures {
-                    guard let click = ButtonClick(buffer) else {
-                        logger.warning("Cannot decode a gateway event", metadata: ["error": "\(error)"])
-                        continue
-                    }
-                    do {
-                        try await InteractionHandler.handleClick(customID: click.customID, mediaURLs: click.mediaURLs,
-                                                                 id: click.id, token: click.token, client: bot.client)
-                    } catch {
-                        logger.error("Cannot answer a button click", metadata: ["error": "\(error)"])
-                    }
+                for await (error, _) in await bot.eventFailures {
+                    logger.warning("Cannot decode a gateway event", metadata: ["error": "\(error)"])
                 }
             }
             for await event in await bot.events {
