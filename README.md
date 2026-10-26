@@ -43,6 +43,11 @@ WebAssembly. The fit travels in the URL fragment (`#eft=<base64url of the EFT te
 to the server, so any static hosting works. `Web/serve.py` serves the directory locally, sending pre-compressed
 files when the browser accepts gzip.
 
+```
+Scripts/build-web.sh        # builds Web/build; needs swiftly with the Swift toolchain and its Wasm SDK
+python3 Web/serve.py 8080
+```
+
 ## Command-line tool
 
 `dogma-cli` prints the same stats in the terminal, which is handy for checking the calculation without Discord:
