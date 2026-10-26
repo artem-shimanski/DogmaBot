@@ -20,9 +20,13 @@ public enum StatFormat {
         }
     }
 
-    /// Meters below 10 km, kilometers above.
+    /// Meters below 10 km, kilometers above; whole kilometers from 100 km.
     public static func distance(_ meters: Double) -> String {
-        meters < 10_000 ? String(format: "%.0f m", meters) : String(format: "%.1f km", meters / 1_000)
+        switch meters {
+        case ..<10_000: String(format: "%.0f m", meters)
+        case ..<100_000: String(format: "%.1f km", meters / 1_000)
+        default: String(format: "%.0f km", meters / 1_000)
+        }
     }
 
     /// `42.0 s`, `3m 05s`, `1h 12m`.

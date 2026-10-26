@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DogmaBot Fit</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+  @media (prefers-color-scheme: dark) { body { background: #1e1f22; color: #ddd; } }
+  pre { white-space: pre-wrap; word-break: break-word; }
+  textarea { width: 100%; height: 12em; font: 13px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<h1>Fit</h1>
+<p id="status">Loading…</p>
+<details id="source"><summary>EFT</summary><pre id="eft"></pre></details>
+<h2>Result</h2>
+<pre id="result"></pre>
+<script type="module">
+import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory }
+  from "https://cdn.jsdelivr.net/npm/@bjorn3/browser_wasi_shim@0.4.2/dist/index.js";
+
+const status = document.getElementById("status");
+
+// The fit travels in the fragment, which the browser never sends to the server: #eft=<base64url of UTF-8 EFT>.
+function fitFromHash() {
+  const value = new URLSearchParams(location.hash.slice(1)).get("eft");
+  if (!value) return null;
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function bytes(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+async function run(eft) {
+  const started = performance.now();
+  const [wasm, sde, text, sdePlist, textPlist] = await Promise.all([
+    fetch("build/dogma-cli.wasm").then(r => r.arrayBuffer()),
+    bytes("build/DogmaKit_DogmaKit.bundle/sde.bin"),
+    bytes("build/DogmaKit_DogmaText.bundle/text-en.bin"),
+    bytes("build/DogmaKit_DogmaKit.bundle/Info.plist"),
+    bytes("build/DogmaKit_DogmaText.bundle/Info.plist"),
+  ]);
+  const loaded = performance.now();
+
+  // Resources are found next to the executable, as SwiftPM lays them out.
+  const app = new PreopenDirectory("/app", [
+    ["DogmaKit_DogmaKit.bundle", new Directory([["sde.bin", new File(sde)], ["Info.plist", new File(sdePlist)]])],
+    ["DogmaKit_DogmaText.bundle", new Directory([["text-en.bin", new File(text)], ["Info.plist", new File(textPlist)]])],
+  ]);
+  let stdout = [];
+  let stderr = [];
+  const fds = [
+    new OpenFile(new File(new TextEncoder().encode(eft))),
+    new ConsoleStdout(data => stdout.push(data)),
+    new ConsoleStdout(data => stderr.push(data)),
+    app,
+  ];
+  const wasi = new WASI(["/app/dogma-cli.wasm", "--json"], [], fds);
+  const module = await WebAssembly.compile(wasm);
+  const instance = await WebAssembly.instantiate(module, { wasi_snapshot_preview1: wasi.wasiImport });
+  const compiled = performance.now();
+  let exitCode = 0;
+  try {
+    exitCode = wasi.start(instance);
+  } catch (error) {
+    stderr.push(new TextEncoder().encode(String(error)));
+    exitCode = -1;
+  }
+  const finished = performance.now();
+
+  const decode = chunks => new TextDecoder().decode(new Uint8Array(chunks.flatMap(c => [...c])));
+  const output = decode(stdout);
+  const errors = decode(stderr);
+  status.textContent = `Download ${Math.round(loaded - started)} ms · compile ${Math.round(compiled - loaded)} ms · `
+    + `calculation ${Math.round(finished - compiled)} ms · exit ${exitCode}`;
+  document.getElementById("result").textContent = errors ? `${errors}\n${output}` : output;
+}
+
+const eft = fitFromHash();
+if (eft) {
+  document.getElementById("eft").textContent = eft;
+  run(eft).catch(error => { status.textContent = String(error); });
+} else {
+  status.textContent = "No fit in the link.";
+}
+</script>
+</body>
+</html>

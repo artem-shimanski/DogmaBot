@@ -8,3 +8,5 @@ DerivedData/
 .env
 *.md
 !README.md
+/Web/build
+/.build-wasm

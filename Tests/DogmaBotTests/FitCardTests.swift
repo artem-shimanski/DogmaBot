@@ -84,19 +84,7 @@ struct FitCardTests {
         let json = try await response(text)
         let data = try #require(json["data"] as? [String: Any])
 
-        var count = 0
-        var characters = 0
-        func walk(_ value: Any) {
-            if let object = value as? [String: Any] {
-                if object["type"] != nil { count += 1 }
-                if let content = object["content"] as? String { characters += content.count }
-                object.values.forEach(walk)
-            } else if let array = value as? [Any] {
-                array.forEach(walk)
-            }
-        }
-        walk(data["components"] as Any)
-
+        let (count, characters) = Self.measure(data["components"] as Any)
         #expect(count <= 40)
         #expect(characters <= 4_000)
     }
@@ -108,5 +96,34 @@ struct FitCardTests {
         let json = String(decoding: data, as: UTF8.self)
 
         #expect(json.contains(#"\\*Brawl\\*"#))
+    }
+
+    @Test("A comparison of two large fits stays within the message limits")
+    func compareLimits() async throws {
+        let fit = try #require(try await FitAnalyzer().analyze(Self.dominix).fits.first)
+        let components = CompareCard.components(for: FitComparison(fit, fit), notes: ["A: Unknown item: Foo Bar"])
+        let data = try JSONEncoder().encode(ComponentsResponse(components: components))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        let (count, characters) = Self.measure(json["data"] as Any)
+        #expect(count <= 40)
+        #expect(characters <= 4_000)
+    }
+
+    /// Number of components and characters of text in a message payload.
+    private static func measure(_ value: Any) -> (count: Int, characters: Int) {
+        var count = 0
+        var characters = 0
+        func walk(_ value: Any) {
+            if let object = value as? [String: Any] {
+                if object["type"] != nil { count += 1 }
+                if let content = object["content"] as? String { characters += content.count }
+                object.values.forEach(walk)
+            } else if let array = value as? [Any] {
+                array.forEach(walk)
+            }
+        }
+        walk(value)
+        return (count, characters)
     }
 }

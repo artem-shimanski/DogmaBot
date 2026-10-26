@@ -4,7 +4,6 @@
 //
 
 import DiscordBM
-import Foundation
 import FitAnalysis
 
 /// Components V2 layout of fit summaries: one container per fit.
@@ -14,34 +13,24 @@ enum FitCard {
     /// about 10 components and 1700 characters.
     static let maxFits = 2
 
-    private static let normalColor: DiscordColor = 0x3B82F6
-    private static let overloadedColor: DiscordColor = 0xEF4444
-    private static let warningsLimit = 600
-
-    static func components(for analysis: FitAnalysis) -> [Interaction.ActionRow.Component] {
-        var components = analysis.fits.prefix(maxFits).map { card(for: $0) }
-        var notes = analysis.warnings.map { "⚠️ \($0)" }
+    /// - Parameter webPage: the fit page; each card links to it with the fit in the URL fragment.
+    static func components(for analysis: FitAnalysis, webPage: String? = nil) -> [Interaction.ActionRow.Component] {
+        var components = analysis.fits.prefix(maxFits).map { card(for: $0, webPage: webPage) }
+        var notes = analysis.warnings
         if analysis.fits.count > maxFits {
             notes.append("\(analysis.fits.count - maxFits) more fits not shown")
         }
-        if !notes.isEmpty {
-            components.append(.textDisplay(.init(content: truncated(notes.map { "-# \($0)" }.joined(separator: "\n"),
-                                                                    limit: warningsLimit))))
+        if let notes = CardText.notes(notes) {
+            components.append(notes)
         }
-        components.append(.textDisplay(.init(content: "-# All skills V · raw damage, no application · "
-                                             + "SDE \(FitAnalyzer.sdeBuild)")))
+        components.append(CardText.footer)
         return components
     }
 
-    static func card(for fit: FitSummary) -> Interaction.ActionRow.Component {
-        let fitting = fit.fitting
-        let isOverloaded = fitting.cpu.isOverloaded || fitting.powerGrid.isOverloaded
-            || fitting.calibration.isOverloaded
-
-        let render = "https://images.evetech.net/types/\(fit.shipTypeID)/render?size=128"
+    static func card(for fit: FitSummary, webPage: String? = nil) -> Interaction.ActionRow.Component {
         let header = Interaction.ActionRow.Section(
-            components: [.textDisplay(.init(content: title(for: fit)))],
-            accessory: .thumbnail(.init(media: .init(url: .exact(render)), description: fit.shipName))
+            components: [.textDisplay(.init(content: title(for: fit, webPage: webPage)))],
+            accessory: .thumbnail(.init(media: CardText.render(of: fit), description: fit.shipName))
         )
 
         return .container(.init(
@@ -53,21 +42,24 @@ enum FitCard {
                 .textDisplay(.init(content: [capacitor(fit), navigation(fit), targeting(fit), self.fitting(fit)]
                     .joined(separator: "\n"))),
                 .separator(.init(divider: true, spacing: .small)),
-                .textDisplay(.init(content: eft(fit)))
+                .textDisplay(.init(content: CardText.eftBlock(fit.eft)))
             ],
-            accent_color: isOverloaded ? overloadedColor : normalColor
+            accent_color: CardText.isOverloaded(fit) ? CardText.overloadedColor : CardText.normalColor
         ))
     }
 
     // MARK: - Sections
 
-    private static func title(for fit: FitSummary) -> String {
+    private static func title(for fit: FitSummary, webPage: String?) -> String {
         var lines = ["## \(fit.shipName)"]
         if let name = fit.name, !name.isEmpty {
-            lines.append("**\(escaped(name))**")
+            lines.append("**\(CardText.escaped(name))**")
         }
         if !fit.shipGroupName.isEmpty {
             lines.append("-# \(fit.shipGroupName)")
+        }
+        if let webPage {
+            lines.append("[Open in browser](\(CardText.webLink(webPage, eft: fit.eft)))")
         }
         return lines.joined(separator: "\n")
     }
@@ -87,12 +79,12 @@ enum FitCard {
         let defense = fit.defense
         func row(_ name: String, _ resistances: FitSummary.DamageProfile, _ ehp: Double) -> String {
             let cells = [resistances.em, resistances.thermal, resistances.kinetic, resistances.explosive]
-                .map { pad(StatFormat.percent($0), 5) }
+                .map { CardText.pad(StatFormat.percent($0), 5) }
                 .joined()
-            return name.padding(toLength: 7, withPad: " ", startingAt: 0) + cells + pad(StatFormat.number(ehp), 8)
+            return CardText.label(name, 7) + cells + CardText.pad(StatFormat.number(ehp), 8)
         }
-        let header = String(repeating: " ", count: 7) + ["EM", "Th", "Kin", "Exp"].map { pad($0, 5) }.joined()
-            + pad("EHP", 8)
+        let header = String(repeating: " ", count: 7) + ["EM", "Th", "Kin", "Exp"].map { CardText.pad($0, 5) }.joined()
+            + CardText.pad("EHP", 8)
         return """
             ### Defense
             **\(StatFormat.number(defense.effectiveHitPoints.total))** EHP
@@ -122,17 +114,17 @@ enum FitCard {
         let rows: [String]
         let summary: String
         if isLimited {
-            header = String(repeating: " ", count: 9) + pad("Peak", 8) + pad("Sustained", 11)
+            header = String(repeating: " ", count: 9) + CardText.pad("Peak", 8) + CardText.pad("Sustained", 11)
             rows = layers.map { name, peak, sustained in
-                name.padding(toLength: 9, withPad: " ", startingAt: 0)
-                    + pad(StatFormat.number(peak), 8) + pad(StatFormat.number(sustained), 11)
+                CardText.label(name, 9)
+                    + CardText.pad(StatFormat.number(peak), 8) + CardText.pad(StatFormat.number(sustained), 11)
             }
             summary = "**\(StatFormat.number(sustained.total))** EHP/s sustained · "
                 + "**\(StatFormat.number(peak.total))** peak"
         } else {
-            header = String(repeating: " ", count: 9) + pad("EHP/s", 8)
+            header = String(repeating: " ", count: 9) + CardText.pad("EHP/s", 8)
             rows = layers.map { name, peak, _ in
-                name.padding(toLength: 9, withPad: " ", startingAt: 0) + pad(StatFormat.number(peak), 8)
+                CardText.label(name, 9) + CardText.pad(StatFormat.number(peak), 8)
             }
             summary = "**\(StatFormat.number(peak.total))** EHP/s"
         }
@@ -170,29 +162,9 @@ enum FitCard {
             + "calibration \(usage(fitting.calibration))"
     }
 
-    /// The fit in a code block, which Discord gives a copy button.
-    private static func eft(_ fit: FitSummary) -> String {
-        // A backtick in a user-supplied fit name would close the block early.
-        let text = fit.eft.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "`", with: "'")
-        return "```\n\(text)\n```"
-    }
-
     // MARK: - Helpers
 
     private static func usage(_ usage: FitSummary.Usage) -> String {
         usage.isOverloaded ? "⚠️ **\(StatFormat.usage(usage))**" : StatFormat.usage(usage)
-    }
-
-    private static func pad(_ text: String, _ width: Int) -> String {
-        String(repeating: " ", count: max(0, width - text.count)) + text
-    }
-
-    /// Fit names come from users; Markdown in them must not break the card.
-    private static func escaped(_ text: String) -> String {
-        DiscordUtils.escapingSpecialCharacters(text)
-    }
-
-    private static func truncated(_ text: String, limit: Int) -> String {
-        text.count <= limit ? text : String(text.prefix(limit - 1)) + "…"
     }
 }

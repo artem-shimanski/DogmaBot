@@ -9,6 +9,7 @@ damage, tank, capacitor, navigation, targeting and fitting resources, calculated
 | Command | What it does |
 |---|---|
 | `/fit` | Opens a form to paste a fit and replies with its stats. |
+| `/compare` | Opens a form to paste two fits and replies with their stats side by side. |
 | **Apps → Analyze fit** (message context menu) | Calculates the fit contained in the selected message. |
 
 The bot needs no privileged intents: message text reaches it only through the context menu command the user
@@ -33,6 +34,14 @@ invokes. It can be installed to a server or to a user account; in the latter cas
 |---|---|
 | `DISCORD_TOKEN` | Bot token. Required. |
 | `DISCORD_GUILD_ID` | Registers the commands on this server only. Server commands update instantly, which is convenient during development; without the variable the commands are registered globally. |
+| `DOGMA_WEB_URL` | Address of the fit page (see below). When set, fit cards link to it. |
+
+## Fit page
+
+`Web/` holds a page that runs the same calculation in the browser: `FitAnalysis` and DogmaKit compiled to
+WebAssembly. The fit travels in the URL fragment (`#eft=<base64url of the EFT text>`), which browsers do not send
+to the server, so any static hosting works. `Web/serve.py` serves the directory locally, sending pre-compressed
+files when the browser accepts gzip.
 
 ## Command-line tool
 

@@ -13,7 +13,8 @@ let package = Package(
     dependencies: [
         .package(path: "../DogmaKit"),
         .package(url: "https://github.com/DiscordBM/DiscordBM.git", .upToNextMinor(from: "1.16.2")),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0")
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.100.0")
     ],
     targets: [
         // Fit text in, plain stats out. Knows nothing about Discord.
@@ -34,7 +35,8 @@ let package = Package(
             dependencies: [
                 "FitAnalysis",
                 .product(name: "DiscordBM", package: "DiscordBM"),
-                .product(name: "Logging", package: "swift-log")
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "NIOCore", package: "swift-nio")
             ]
         ),
         .testTarget(
@@ -43,7 +45,11 @@ let package = Package(
         ),
         .testTarget(
             name: "DogmaBotTests",
-            dependencies: ["DogmaBot"]
+            dependencies: [
+                "DogmaBot",
+                .product(name: "DiscordBM", package: "DiscordBM"),
+                .product(name: "NIOCore", package: "swift-nio")
+            ]
         )
     ]
 )
