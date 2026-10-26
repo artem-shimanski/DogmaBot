@@ -4,6 +4,8 @@ A Discord bot that calculates EVE Online fits. Paste a fit in EFT, DNA or in-gam
 damage, tank, capacitor, navigation, targeting and fitting resources, calculated by the
 [DogmaKit](https://github.com/artem-shimanski/DogmaKit) engine with all skills at level V.
 
+[![Add to Discord](https://img.shields.io/badge/Add_to-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1564010332286885978)
+
 ## Commands
 
 | Command | What it does |
