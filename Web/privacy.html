@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — DogmaBot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #edf0f3; --surface: #ffffff; --ink: #0e151c; --muted: #56636f; --faint: #7a8691;
+    --line: #d5dce3; --accent: #0a7f8c;
+    --display: "Chakra Petch", system-ui, sans-serif;
+    --text: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0e13; --surface: #111821; --ink: #e6edf3; --muted: #8b9bab; --faint: #5e6e7e;
+    --line: #1f2b38; --accent: #3fd0e0;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--text); }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { font: 700 13px/1 var(--display); letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  h1 { margin: 8px 0 4px; font: 700 32px/1.2 var(--display); }
+  h2 { margin: 36px 0 8px; font: 600 15px/1.4 var(--display); letter-spacing: 1.5px; text-transform: uppercase;
+       color: var(--muted); }
+  .date { color: var(--faint); font: 13px/1.4 var(--mono); }
+  .summary { margin-top: 24px; padding: 4px 20px; background: var(--surface); border: 1px solid var(--line);
+             border-radius: 8px; }
+  a { color: var(--accent); }
+  code { font: 14px var(--mono); }
+  li { margin: 6px 0; }
+  footer { margin-top: 48px; color: var(--faint); font-size: 13px; }
+  /* The theme button cycles system → light → dark (see theme.js); it shows the current choice. */
+  .theme { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none;
+           border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+  .theme:hover { color: var(--ink); }
+  .theme > span { display: none; }
+  .theme svg { display: block; width: 17px; height: 17px; }
+  :root:not([data-theme-choice]) .theme .t-system, :root[data-theme-choice="system"] .theme .t-system,
+  :root[data-theme-choice="light"] .theme .t-light, :root[data-theme-choice="dark"] .theme .t-dark { display: block; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+<script src="theme.js"></script>
+</head>
+<body>
+<main>
+  <div class="bar">
+    <div class="brand">DogmaBot</div>
+    <button class="theme" type="button" data-theme-toggle title="Theme: system, light or dark">
+      <span class="t-system"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg><span class="sr">Theme: system</span></span>
+      <span class="t-light"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="sr">Theme: light</span></span>
+      <span class="t-dark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="sr">Theme: dark</span></span>
+    </button>
+  </div>
+  <h1>Privacy Policy</h1>
+  <div class="date">Effective date: 2026-10-26</div>
+
+  <p>DogmaBot is an unofficial, open-source Discord bot that calculates EVE Online ship fits, together with a fit
+    page that shows a fit's full stats in the browser. This policy explains what data the bot and the page handle,
+    where it goes and how you can remove it. The source code is public on
+    <a href="https://github.com/artem-shimanski/DogmaBot">GitHub</a>, so every statement below can be checked.</p>
+
+  <section class="summary">
+    <h2>In short</h2>
+    <ul>
+      <li>DogmaBot has no database. It does not store your messages, your fits or anything about you.</li>
+      <li>A fit is calculated the moment you send it, the bot answers, and nothing is kept afterwards.</li>
+      <li>No analytics, no advertising, no tracking, no cookies.</li>
+      <li>The developer does not collect, sell or share any personal data.</li>
+    </ul>
+  </section>
+
+  <h2>Data the bot receives</h2>
+  <p>The bot reads nothing in your server on its own: it does not read messages and does not request access to
+    message content. It only receives what Discord sends when someone uses one of its commands:</p>
+  <ul>
+    <li><code>/fit</code> and <code>/compare</code>: the fit text typed into the command's form;</li>
+    <li><em>Analyze fit</em> (the message context menu): the text of the one message the command was used on;</li>
+    <li>with every command, the data Discord attaches to it: the IDs of the user, server and channel, the user's
+      name, and a token that lets the bot reply.</li>
+  </ul>
+  <p>The bot uses this data only to calculate the fit and post the reply. It is processed in memory and discarded
+    once the reply is sent. The reply contains the fit's stats, the ship's image and a link to the fit page with
+    the fit in the link itself; replies to <code>/fit</code>, <code>/compare</code> and <em>Analyze fit</em> are
+    visible in the channel like any other message, and error messages are visible only to you.</p>
+
+  <h2>Logs</h2>
+  <p>The bot writes technical logs: start-up, connection to Discord and errors. They do not record the text of
+    fits or messages. The logs are kept by the hosting provider that runs the bot, for the period that provider
+    keeps logs, and are used only to keep the bot working.</p>
+
+  <h2>The fit page</h2>
+  <p>The fit page is a static page served by GitHub Pages. The fit travels in the part of the link after
+    <code>#</code>, which browsers do not send to any server, and the calculation runs entirely in your browser.
+    To show the page, your browser also contacts:</p>
+  <ul>
+    <li><strong>GitHub Pages</strong>, which serves the page and its data files
+      (<a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's
+      privacy statement</a>);</li>
+    <li><strong>CCP hf.</strong>: <code>images.evetech.net</code> for ship and item images, which reveals which
+      items are in the fit, and <code>esi.evetech.net</code> for average market prices, a request that contains no
+      fit data (<a href="https://www.ccpgames.com/privacy-policy">CCP's privacy policy</a>);</li>
+    <li><strong>Google Fonts</strong> for the page's fonts
+      (<a href="https://policies.google.com/privacy">Google's privacy policy</a>);</li>
+    <li><strong>jsDelivr</strong> for a script that runs the calculator
+      (<a href="https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net">jsDelivr's privacy policy</a>).</li>
+  </ul>
+  <p>Like any web request, these reveal your IP address and browser details to the service contacted. The page
+    sets no cookies and stores nothing in your browser. The copy buttons put the fit on your clipboard and send
+    it nowhere.</p>
+
+  <h2>Discord</h2>
+  <p>Commands and replies pass through Discord and are subject to
+    <a href="https://discord.com/privacy">Discord's privacy policy</a>. The bot's replies stay in the channel until
+    someone deletes them; you can delete messages you are allowed to delete, and server moderators can delete any
+    of the bot's replies.</p>
+
+  <h2>Children</h2>
+  <p>DogmaBot is not directed at children and is meant for people who may use Discord under its terms.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version is published on this page with a new effective date. The history of
+    every change is public in the repository.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or requests about this policy: open an issue at
+    <a href="https://github.com/artem-shimanski/DogmaBot/issues">github.com/artem-shimanski/DogmaBot/issues</a>.</p>
+
+  <footer>
+    <a href="terms.html">Terms of Service</a> · <a href="https://github.com/artem-shimanski/DogmaBot">Source code</a><br>
+    EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide.
+    DogmaBot is not affiliated with or endorsed by CCP hf.
+  </footer>
+</main>
+</body>
+</html>

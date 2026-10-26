@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Service — DogmaBot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #edf0f3; --surface: #ffffff; --ink: #0e151c; --muted: #56636f; --faint: #7a8691;
+    --line: #d5dce3; --accent: #0a7f8c;
+    --display: "Chakra Petch", system-ui, sans-serif;
+    --text: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0e13; --surface: #111821; --ink: #e6edf3; --muted: #8b9bab; --faint: #5e6e7e;
+    --line: #1f2b38; --accent: #3fd0e0;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--text); }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { font: 700 13px/1 var(--display); letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  h1 { margin: 8px 0 4px; font: 700 32px/1.2 var(--display); }
+  h2 { margin: 36px 0 8px; font: 600 15px/1.4 var(--display); letter-spacing: 1.5px; text-transform: uppercase;
+       color: var(--muted); }
+  .date { color: var(--faint); font: 13px/1.4 var(--mono); }
+  .summary { margin-top: 24px; padding: 4px 20px; background: var(--surface); border: 1px solid var(--line);
+             border-radius: 8px; }
+  a { color: var(--accent); }
+  code { font: 14px var(--mono); }
+  li { margin: 6px 0; }
+  footer { margin-top: 48px; color: var(--faint); font-size: 13px; }
+  /* The theme button cycles system → light → dark (see theme.js); it shows the current choice. */
+  .theme { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none;
+           border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+  .theme:hover { color: var(--ink); }
+  .theme > span { display: none; }
+  .theme svg { display: block; width: 17px; height: 17px; }
+  :root:not([data-theme-choice]) .theme .t-system, :root[data-theme-choice="system"] .theme .t-system,
+  :root[data-theme-choice="light"] .theme .t-light, :root[data-theme-choice="dark"] .theme .t-dark { display: block; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+<script src="theme.js"></script>
+</head>
+<body>
+<main>
+  <div class="bar">
+    <div class="brand">DogmaBot</div>
+    <button class="theme" type="button" data-theme-toggle title="Theme: system, light or dark">
+      <span class="t-system"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg><span class="sr">Theme: system</span></span>
+      <span class="t-light"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="sr">Theme: light</span></span>
+      <span class="t-dark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="sr">Theme: dark</span></span>
+    </button>
+  </div>
+  <h1>Terms of Service</h1>
+  <div class="date">Effective date: 2026-10-26</div>
+
+  <p>These terms cover the DogmaBot Discord bot and its fit page (together, “DogmaBot”). By adding DogmaBot to a
+    server or using its commands or the fit page, you agree to them. If you do not agree, do not use DogmaBot.</p>
+
+  <h2>The service</h2>
+  <p>DogmaBot calculates the stats of EVE Online ship fits: <code>/fit</code> and the <em>Analyze fit</em> message
+    command show a fit's stats, <code>/compare</code> compares two fits, and the fit page shows a fit in full in
+    the browser. DogmaBot is free, has no accounts and no paid features. It is an unofficial fan project developed
+    in spare time.</p>
+
+  <h2>Calculations</h2>
+  <p>Stats are calculated by the open-source <a href="https://github.com/artem-shimanski/DogmaKit">DogmaKit</a>
+    engine from the game's static data, assuming all skills at level V, raw damage without application and the
+    drones and fighters the ship can launch. They are estimates for theorycrafting and may differ from the game.
+    Market prices on the fit page come from CCP's average prices and are approximate. Do not rely on DogmaBot for
+    decisions where an error would cost you, in game or otherwise.</p>
+
+  <h2>Acceptable use</h2>
+  <p>You agree not to:</p>
+  <ul>
+    <li>flood the bot with commands, automate it or otherwise put an unreasonable load on it;</li>
+    <li>try to disrupt, break or gain unauthorised access to the bot, its hosting or the fit page;</li>
+    <li>use DogmaBot to break Discord's <a href="https://discord.com/terms">Terms of Service</a> or
+      <a href="https://discord.com/guidelines">Community Guidelines</a>, CCP's
+      <a href="https://support.eveonline.com/hc/en-us/articles/8414770561948-EVE-Online-Terms-of-Service">EVE
+      Online Terms of Service</a>, or the law.</li>
+  </ul>
+  <p>What you post through DogmaBot is your responsibility, as with any other message in Discord. Server
+    administrators decide whether DogmaBot is allowed on their server and can remove it at any time.</p>
+
+  <h2>Availability</h2>
+  <p>DogmaBot runs on free or low-cost hosting and is provided as is. It may be slow, unavailable or changed, and
+    may be discontinued at any time, without notice. Access may be refused to anyone who breaks these terms.</p>
+
+  <h2>Privacy</h2>
+  <p>DogmaBot stores no personal data. How it handles the data Discord sends with a command is described in the
+    <a href="privacy.html">Privacy Policy</a>.</p>
+
+  <h2>Open source</h2>
+  <p>The source code of DogmaBot is public on <a href="https://github.com/artem-shimanski/DogmaBot">GitHub</a>.
+    These terms cover the running service, not the code in the repository.</p>
+
+  <h2>No warranty and limitation of liability</h2>
+  <p>DogmaBot is provided “as is” and “as available”, without warranties of any kind, express or implied,
+    including accuracy, fitness for a particular purpose and uninterrupted operation. To the extent the law allows,
+    the developer is not liable for any loss or damage arising from the use of DogmaBot or the inability to use
+    it.</p>
+
+  <h2>EVE Online</h2>
+  <p>EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. All
+    other trademarks are the property of their respective owners. EVE Online, the EVE logo, EVE and all associated
+    logos and designs are the intellectual property of CCP hf. All artwork, screenshots, characters, vehicles,
+    storylines, world facts or other recognizable features of the intellectual property relating to these
+    trademarks are likewise the intellectual property of CCP hf. DogmaBot is not affiliated with or endorsed by
+    CCP hf., and CCP hf. is in no way responsible for its content or functioning.</p>
+
+  <h2>Changes</h2>
+  <p>These terms may change. The new version is published on this page with a new effective date; using DogmaBot
+    after that means accepting it. The history of every change is public in the repository.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about these terms: open an issue at
+    <a href="https://github.com/artem-shimanski/DogmaBot/issues">github.com/artem-shimanski/DogmaBot/issues</a>.</p>
+
+  <footer>
+    <a href="privacy.html">Privacy Policy</a> · <a href="https://github.com/artem-shimanski/DogmaBot">Source code</a>
+  </footer>
+</main>
+</body>
+</html>

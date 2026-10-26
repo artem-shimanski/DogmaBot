@@ -19,15 +19,13 @@
     --mono: "JetBrains Mono", ui-monospace, monospace;
     color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0a0e13; --surface: #111821; --raised: #1a2330;
-      --ink: #e6edf3; --muted: #8b9bab; --faint: #5e6e7e;
-      --line: #1f2b38; --line-subtle: #1a2430; --line-leader: #2e3d4e;
-      --accent: #3fd0e0; --ok: #49d17d; --warn: #f0a43a; --danger: #ff6b5e;
-      --em: #5aa8f0; --thermal: #f06a5a; --kinetic: #a9b4c0; --explosive: #f0a43a;
-      color-scheme: dark;
-    }
+  :root[data-theme="dark"] {
+    --bg: #0a0e13; --surface: #111821; --raised: #1a2330;
+    --ink: #e6edf3; --muted: #8b9bab; --faint: #5e6e7e;
+    --line: #1f2b38; --line-subtle: #1a2430; --line-leader: #2e3d4e;
+    --accent: #3fd0e0; --ok: #49d17d; --warn: #f0a43a; --danger: #ff6b5e;
+    --em: #5aa8f0; --thermal: #f06a5a; --kinetic: #a9b4c0; --explosive: #f0a43a;
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -194,7 +192,17 @@
   footer { margin: 28px 0 8px; color: var(--faint); font-size: 11px; text-align: center; }
   footer a { color: var(--accent); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
+  /* The theme button cycles system → light → dark (see theme.js); it shows the current choice. */
+  .theme { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none;
+           border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+  .theme:hover { color: var(--ink); }
+  .theme > span { display: none; }
+  .theme svg { display: block; width: 17px; height: 17px; }
+  :root:not([data-theme-choice]) .theme .t-system, :root[data-theme-choice="system"] .theme .t-system,
+  :root[data-theme-choice="light"] .theme .t-light, :root[data-theme-choice="dark"] .theme .t-dark { display: block; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
+<script src="theme.js"></script>
 </head>
 <body>
 <div class="page" id="page">
@@ -433,6 +441,11 @@ function header(sheet) {
         <h1>${esc(sheet.ship.name)}</h1>
         ${sheet.name ? `<div class="fitname">${esc(sheet.name)}</div>` : ""}
       </div>
+      <button class="theme" type="button" data-theme-toggle title="Theme: system, light or dark">
+          <span class="t-system"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg><span class="sr">Theme: system</span></span>
+          <span class="t-light"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="sr">Theme: light</span></span>
+          <span class="t-dark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="sr">Theme: dark</span></span>
+        </button>
       <div class="copies">
         <button class="copy" data-action="copy" data-format="eft">${copyIcon}<span>Copy EFT</span></button>
         <button class="copy" data-action="copy" data-format="dna" title="Link to paste in the game's chat">${copyIcon}<span>Copy DNA</span></button>
@@ -773,7 +786,8 @@ function draw() {
   page.innerHTML = header(sheet) + tabs()
     + `<main class="cols" data-tab="${view.tab}"><div class="col" id="fit">${fitColumn(sheet)}</div>`
     + `<div class="col" id="stats">${statsColumn(sheet)}</div></main>`
-    + `<footer>All skills at level V · calculated in your browser by <a href="https://github.com/artem-shimanski/DogmaKit">DogmaKit</a></footer>`;
+    + `<footer>All skills at level V · calculated in your browser by <a href="https://github.com/artem-shimanski/DogmaKit">DogmaKit</a>`
+    + ` · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></footer>`;
 }
 
 /// The fit as an in-game chat link, `<url=fitting:DNA>name</url>`; the name drops the markup's angle brackets.

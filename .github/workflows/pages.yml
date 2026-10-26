@@ -45,11 +45,11 @@ jobs:
       - name: Build
         run: Scripts/build-web.sh
 
-      # The page and what it loads; the .gz copies are for Web/serve.py only, Pages compresses on its own.
+      # The pages and what the fit page loads; the .gz copies are for Web/serve.py only, Pages compresses on its own.
       - name: Lay out the site
         run: |
           mkdir -p _site/build
-          cp Web/index.html _site/
+          cp Web/index.html Web/privacy.html Web/terms.html Web/theme.js _site/
           cp Web/build/dogma-cli.wasm Web/build/sde.bin Web/build/text-en.bin _site/build/
 
       - uses: actions/upload-pages-artifact@v5
