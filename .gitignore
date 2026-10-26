@@ -10,3 +10,4 @@ DerivedData/
 !README.md
 /Web/build
 /.build-wasm
+.claude/

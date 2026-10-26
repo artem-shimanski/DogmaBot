@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch supersedes a build still in progress, so only the latest commit is published.
+concurrency:
+  group: bot-image-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE: ghcr.io/artem-shimanski/dogmabot
 
@@ -60,6 +65,8 @@ jobs:
           push: ${{ env.PUBLISH == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # One manifest per image, so every push is a single package version that cleanup can count and delete.
+          provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

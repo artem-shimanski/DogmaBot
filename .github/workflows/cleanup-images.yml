@@ -1,0 +1,59 @@
+# Deletes old versions of the bot's image from GitHub Container Registry: every push to main adds one (`sha-<commit>`).
+# The newest tagged versions and `latest` stay. Untagged versions, the parts of images published with attestations,
+# go only once they are older than every kept image, so no kept image loses a part.
+name: Clean up images
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: List the versions that would be deleted without deleting them
+        type: boolean
+        default: true
+
+permissions:
+  packages: write
+
+env:
+  PACKAGE: dogmabot
+  KEEP: 10
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OWNER: ${{ github.repository_owner }}
+      DRY_RUN: ${{ inputs.dry-run || false }}
+    steps:
+      - name: Delete old versions
+        run: |
+          set -euo pipefail
+          versions=$(gh api --paginate "/users/$OWNER/packages/container/$PACKAGE/versions" \
+            --jq '.[] | {id, created_at, tags: .metadata.container.tags}' | jq -s 'sort_by(.created_at) | reverse')
+          kept=$(jq --argjson keep "$KEEP" '[.[] | select(.tags | length > 0)][:$keep]' <<<"$versions")
+          if [ "$(jq length <<<"$kept")" -eq 0 ]; then
+            echo "No tagged versions; nothing to delete."
+            exit 0
+          fi
+          # An hour's margin: the parts of an image are pushed moments before the version that carries its tags.
+          cutoff=$(jq '(last.created_at | fromdateiso8601) - 3600' <<<"$kept")
+          doomed=$(jq -r --argjson kept "$kept" --argjson cutoff "$cutoff" '
+            ($kept | map(.id)) as $keptIDs
+            | .[]
+            | select(.id as $id | $keptIDs | index($id) | not)
+            | select(.tags | index("latest") | not)
+            | select((.tags | length > 0) or ((.created_at | fromdateiso8601) < $cutoff))
+            | "\(.id) \(.created_at) \(.tags | join(","))"' <<<"$versions")
+          if [ -z "$doomed" ]; then
+            echo "Nothing to delete: $(jq length <<<"$versions") versions."
+            exit 0
+          fi
+          while read -r id created tags; do
+            echo "Delete $id ($created${tags:+, $tags})"
+            if [ "$DRY_RUN" != "true" ]; then
+              gh api --method DELETE "/users/$OWNER/packages/container/$PACKAGE/versions/$id" --silent
+            fi
+          done <<<"$doomed"
