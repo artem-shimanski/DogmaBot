@@ -13,10 +13,11 @@ usage() {
 Usage: Scripts/build-web.sh [-h]
 
 Builds dogma-cli for WebAssembly and lays out Web/build:
-  dogma-cli.wasm                      debug info stripped
-  DogmaKit_DogmaKit.bundle/sde.bin    engine data
-  DogmaKit_DogmaText.bundle/text-en.bin
-and a .gz next to each large file for Web/serve.py.
+  dogma-cli.wasm   debug info stripped
+  sde.bin          engine data, taken from the DogmaKit sources
+  text-en.bin      English names
+and a .gz next to each file for Web/serve.py. On WebAssembly DogmaKit reads the data files from the directory of
+the executable, as there are no resource bundles.
 
 Needs swiftly with the open-source toolchain and its Wasm SDK; Xcode's toolchain cannot target WebAssembly.
   \$SWIFT_TOOLCHAIN  toolchain for swiftly (default 6.4.1)
@@ -45,19 +46,30 @@ swift build -c release --product dogma-cli --swift-sdk "$SDK" --build-path "$BUI
 
 # llvm-objcopy ships with the toolchain, next to swift.
 OBJCOPY=$(dirname "$(swiftly run which swift "+$TOOLCHAIN")")/llvm-objcopy
-PRODUCTS=$BUILD/release
+# The data files live in DogmaKit's resource targets, which WebAssembly builds leave out.
+DOGMAKIT=$(swift package --build-path "$BUILD" show-dependencies --format json | python3 -c '
+import json, sys
+def find(node):
+    for dependency in node.get("dependencies", []):
+        if dependency["identity"] == "dogmakit":
+            return dependency["path"]
+        found = find(dependency)
+        if found:
+            return found
+print(find(json.load(sys.stdin)) or "")
+')
+[ -n "$DOGMAKIT" ] || { echo "DogmaKit is not among the dependencies" >&2; exit 1; }
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
-"$OBJCOPY" --strip-all "$PRODUCTS/dogma-cli.wasm" "$OUT/dogma-cli.wasm"
-for bundle in DogmaKit_DogmaKit.bundle DogmaKit_DogmaText.bundle; do
-    cp -R "$PRODUCTS/$bundle" "$OUT/$bundle"
-done
-for file in "$OUT/dogma-cli.wasm" "$OUT"/*.bundle/*.bin; do
+"$OBJCOPY" --strip-all "$BUILD/release/dogma-cli.wasm" "$OUT/dogma-cli.wasm"
+cp "$DOGMAKIT/Sources/DogmaKitResources/Resources/sde.bin" "$OUT/"
+cp "$DOGMAKIT/Sources/DogmaTextResources/Resources/text-en.bin" "$OUT/"
+for file in "$OUT"/*; do
     gzip -9 -k "$file"
 done
 
-for file in "$OUT/dogma-cli.wasm" "$OUT"/*.bundle/*.bin; do
-    printf '%-40s %10s bytes, gzip %10s\n' "${file#"$OUT"/}" "$(wc -c <"$file" | tr -d ' ')" \
+for file in "$OUT/dogma-cli.wasm" "$OUT/sde.bin" "$OUT/text-en.bin"; do
+    printf '%-16s %10s bytes, gzip %10s\n' "${file#"$OUT"/}" "$(wc -c <"$file" | tr -d ' ')" \
         "$(wc -c <"$file.gz" | tr -d ' ')"
 done

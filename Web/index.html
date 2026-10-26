@@ -18,7 +18,7 @@
 <h2>Result</h2>
 <pre id="result"></pre>
 <script type="module">
-import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory }
+import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory }
   from "https://cdn.jsdelivr.net/npm/@bjorn3/browser_wasi_shim@0.4.2/dist/index.js";
 
 const status = document.getElementById("status");
@@ -40,19 +40,17 @@ async function bytes(url) {
 
 async function run(eft) {
   const started = performance.now();
-  const [wasm, sde, text, sdePlist, textPlist] = await Promise.all([
+  const [wasm, sde, text] = await Promise.all([
     fetch("build/dogma-cli.wasm").then(r => r.arrayBuffer()),
-    bytes("build/DogmaKit_DogmaKit.bundle/sde.bin"),
-    bytes("build/DogmaKit_DogmaText.bundle/text-en.bin"),
-    bytes("build/DogmaKit_DogmaKit.bundle/Info.plist"),
-    bytes("build/DogmaKit_DogmaText.bundle/Info.plist"),
+    bytes("build/sde.bin"),
+    bytes("build/text-en.bin"),
   ]);
   const loaded = performance.now();
 
-  // Resources are found next to the executable, as SwiftPM lays them out.
+  // On WebAssembly DogmaKit reads its data files from the directory of the executable.
   const app = new PreopenDirectory("/app", [
-    ["DogmaKit_DogmaKit.bundle", new Directory([["sde.bin", new File(sde)], ["Info.plist", new File(sdePlist)]])],
-    ["DogmaKit_DogmaText.bundle", new Directory([["text-en.bin", new File(text)], ["Info.plist", new File(textPlist)]])],
+    ["sde.bin", new File(sde)],
+    ["text-en.bin", new File(text)],
   ]);
   let stdout = [];
   let stderr = [];

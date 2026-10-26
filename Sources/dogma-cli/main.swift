@@ -6,7 +6,13 @@
 //  Reads a fit (EFT, DNA or in-game XML) from the file or from standard input and prints its stats.
 //
 
+#if os(WASI)
+// Full Foundation would add ICU data, tens of megabytes, to the WebAssembly module.
+import FoundationEssentials
+import WASILibc
+#else
 import Foundation
+#endif
 import FitAnalysis
 
 var arguments = Array(CommandLine.arguments.dropFirst())
@@ -14,8 +20,25 @@ let json = arguments.contains("--json")
 arguments.removeAll { $0 == "--json" }
 
 func fail(_ message: String) -> Never {
+    #if os(WASI)
+    fputs(message + "\n", stderr)
+    #else
     FileHandle.standardError.write(Data((message + "\n").utf8))
+    #endif
     exit(1)
+}
+
+func readStandardInput() -> String {
+    #if os(WASI)
+    // FoundationEssentials has no `FileHandle`.
+    var lines: [String] = []
+    while let line = readLine(strippingNewline: false) {
+        lines.append(line)
+    }
+    return lines.joined()
+    #else
+    String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
+    #endif
 }
 
 let text: String
@@ -23,10 +46,10 @@ if let path = arguments.first {
     do {
         text = try String(contentsOfFile: path, encoding: .utf8)
     } catch {
-        fail("Cannot read \(path): \(error.localizedDescription)")
+        fail("Cannot read \(path): \(error)")
     }
 } else {
-    text = String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
+    text = readStandardInput()
 }
 
 let analysis: FitAnalysis

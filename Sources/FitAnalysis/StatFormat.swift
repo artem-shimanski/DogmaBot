@@ -3,7 +3,13 @@
 //  FitAnalysis
 //
 
+#if os(WASI)
+// Full Foundation would add ICU data, tens of megabytes, to the WebAssembly module.
+import FoundationEssentials
+import WASILibc
+#else
 import Foundation
+#endif
 
 /// Compact, locale-independent formatting of stat values for chat and terminal output.
 public enum StatFormat {
@@ -65,3 +71,16 @@ public enum StatFormat {
         return "Lasts \(duration(capacitor.lastsFor ?? 0))"
     }
 }
+
+#if os(WASI)
+extension String {
+    /// `printf`-style formatting, which FoundationEssentials lacks. Results here are short numbers and units.
+    init(format: String, _ arguments: any CVarArg...) {
+        self = withVaList(arguments) { list in
+            var buffer = [CChar](repeating: 0, count: 64)
+            _ = vsnprintf(&buffer, buffer.count, format, list)
+            return String(cString: buffer)
+        }
+    }
+}
+#endif
