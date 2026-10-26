@@ -7,12 +7,14 @@
 //  - DISCORD_GUILD_ID: registers commands on this server only; they update instantly, which suits development.
 //    Without it commands are registered globally.
 //  - DOGMA_WEB_URL: address of the fit page (required); cards link to it instead of printing the fits.
+//  - PORT: when set, a health check answers on this port (see `HealthServer`), for platforms that require one.
 //
 
 import DiscordBM
 import FitAnalysis
 import Foundation
 import Logging
+import NIOCore
 
 @main
 struct Bot {
@@ -31,6 +33,20 @@ struct Bot {
             exit(1)
         }
         let analyzer = try FitAnalyzer()
+
+        // Kept for the lifetime of the process; the server stops with it.
+        var healthServer: (any Channel)?
+        if let port = environment["PORT"].flatMap({ Int($0) }) {
+            do {
+                healthServer = try await HealthServer.start(port: port)
+                logger.info("Health check listening", metadata: ["port": "\(port)"])
+            } catch {
+                logger.critical("Cannot listen on PORT", metadata: ["port": "\(port)", "error": "\(error)"])
+                exit(1)
+            }
+        }
+        defer { healthServer?.close(promise: nil) }
+
         // Interactions arrive without any intent; message content is read from the interaction itself.
         let bot = await BotGatewayManager(
             token: token,

@@ -1,5 +1,5 @@
 # The Discord bot. Platforms that deploy from a GitHub repository build this file; the container needs
-# DISCORD_TOKEN and DOGMA_WEB_URL in its environment and listens on no port.
+# DISCORD_TOKEN and DOGMA_WEB_URL in its environment. It listens on a port only when PORT is set, for a health check.
 
 # MARK: - Build
 
