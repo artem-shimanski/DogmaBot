@@ -38,23 +38,38 @@ invokes. It can be installed to a server or to a user account; in the latter cas
 
 ## Deploying
 
-The repository's `Dockerfile` builds the bot for Linux, so any platform that builds a container from a GitHub
-repository can run it (Railway, Render, Koyeb, DigitalOcean App Platform and the like):
+Every push to `main` runs the tests on Linux and publishes the bot's image to GitHub Container Registry as
+`ghcr.io/artem-shimanski/dogmabot` (tags `latest` and `sha-<commit>`, `linux/amd64`). A platform that runs Docker
+images (Railway, Render, Koyeb, DigitalOcean App Platform and the like) pulls it ready-made, so it does not compile
+anything:
 
-1. Create a service from `https://github.com/artem-shimanski/DogmaBot`; the platform finds the `Dockerfile`.
+1. Create a service from the image `ghcr.io/artem-shimanski/dogmabot:latest`.
 2. Choose a background worker if the platform asks: the bot keeps a connection to Discord and serves no HTTP, so
    it needs neither a port nor a public address.
 3. Set `DISCORD_TOKEN` and `DOGMA_WEB_URL` (the fit page, `https://artem-shimanski.github.io/DogmaBot/`).
 
-One instance is enough, and only one should run: each running copy would answer every command. The first build takes
-several minutes. `.github/workflows/docker.yml` builds the same image and runs the tests on Linux for every push.
+One instance is enough, and only one should run: each running copy would answer every command.
 
-To run the image yourself:
+To redeploy on every push, put the platform's deploy hook URL into the repository secret `DEPLOY_HOOK_URL`; the
+workflow calls it once the new image is published. To go back to an earlier version, deploy its `sha-<commit>` tag.
+
+On a server of your own:
 
 ```
-docker build -t dogmabot .
-docker run -e DISCORD_TOKEN=<token> -e DOGMA_WEB_URL=https://artem-shimanski.github.io/DogmaBot/ dogmabot
+docker run -d --restart unless-stopped --name dogmabot \
+    -e DISCORD_TOKEN=<token> -e DOGMA_WEB_URL=https://artem-shimanski.github.io/DogmaBot/ \
+    ghcr.io/artem-shimanski/dogmabot:latest
 ```
+
+and to update it, pull the new image and start the container again:
+
+```
+docker pull ghcr.io/artem-shimanski/dogmabot:latest
+docker rm -f dogmabot
+```
+
+followed by the same `docker run`. A platform that builds from the repository instead finds the `Dockerfile`;
+`docker build -t dogmabot .` builds the same image locally.
 
 ## Fit page
 

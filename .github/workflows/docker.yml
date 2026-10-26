@@ -1,5 +1,6 @@
-# Builds the bot's container image, the one hosting platforms build from this repository, and runs the tests on
-# Linux. Nothing is published.
+# Runs the tests on Linux and builds the bot's container image. On main the image is published to GitHub Container
+# Registry as ghcr.io/artem-shimanski/dogmabot (tags `latest` and `sha-<commit>`), so hosting platforms pull it
+# instead of building it; pull requests only build it.
 name: Bot image
 
 on:
@@ -11,6 +12,9 @@ on:
 permissions:
   contents: read
 
+env:
+  IMAGE: ghcr.io/artem-shimanski/dogmabot
+
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -20,13 +24,44 @@ jobs:
       - run: swift test
 
   image:
+    needs: test
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+      # A platform's deploy hook (Render, Railway and the like) that redeploys the new `latest`; the last step calls
+      # it when the repository secret is set.
+      DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
+
+      - if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Also labels the image with the repository, which links the package to it on GitHub.
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+
       - uses: docker/build-push-action@v7
         with:
           context: .
-          push: false
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - if: env.PUBLISH == 'true' && env.DEPLOY_HOOK_URL != ''
+        run: curl --fail --silent --show-error --request POST "$DEPLOY_HOOK_URL"
