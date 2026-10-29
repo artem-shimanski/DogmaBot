@@ -57,7 +57,7 @@ extension FitAnalyzer {
             var candidates: [LaunchCandidate] = []
             hull.drones.forEach { drone in
                 let squadron = FitSheet.Squadron(drone.squadron)
-                let count = max(drone.count, 1)
+                let count = drone.count
                 let dps = drone.dps()
                 let total = dps.em + dps.thermal + dps.kinetic + dps.explosive
                 candidates.append(LaunchCandidate(id: drone.id,
@@ -65,16 +65,16 @@ extension FitAnalyzer {
                                                   squadron: squadron,
                                                   count: count,
                                                   dps: squadron == nil ? total / Double(count) : total,
-                                                  bandwidth: drone.attributes[.droneBandwidthUsed] ?? 0,
+                                                  bandwidth: drone.bandwidthUsed,
                                                   isMutated: drone.isMutated))
             }
             var squadrons: [FitSheet.Squadron: Int] = [:]
-            for squadron in FitSheet.Squadron.allCases {
-                squadrons[squadron] = Int(hull.attributes[squadron.slotsAttribute] ?? 0)
+            for (squadron, capacity) in hull.squadrons {
+                if let squadron = FitSheet.Squadron(squadron) { squadrons[squadron] = capacity.total }
             }
             let limits = LaunchLimits(drones: hull.dronesInSpace.total,
                                       bandwidth: hull.droneBandwidth.total,
-                                      fighterTubes: Int(hull.attributes[.fighterTubes] ?? 0),
+                                      fighterTubes: hull.fighterTubes.total,
                                       squadrons: squadrons)
             return (candidates, limits)
         }

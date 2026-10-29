@@ -1,5 +1,5 @@
 {
-  "originHash" : "b7dd2b8cd557823ca0a11d8bb47fe36fb3496a3236f67c2d6e639012dadd7068",
+  "originHash" : "fbd57781d986671ed89a29bbb86bcf10a5f22aac84af471809e1c96977ec0980",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/artem-shimanski/DogmaKit.git",
       "state" : {
-        "revision" : "29fc688c5ea0be38d7b3aba8b50811902bac33f4",
-        "version" : "0.4.0"
+        "revision" : "74ad7d655cd896859c24ceebcc43e10d0fd82bb2",
+        "version" : "0.4.2"
       }
     },
     {

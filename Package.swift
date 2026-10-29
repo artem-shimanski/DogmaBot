@@ -11,7 +11,7 @@ let package = Package(
         .executable(name: "DogmaBot", targets: ["DogmaBot"])
     ],
     dependencies: [
-        .package(url: "https://github.com/artem-shimanski/DogmaKit.git", .upToNextMinor(from: "0.4.0")),
+        .package(url: "https://github.com/artem-shimanski/DogmaKit.git", .upToNextMinor(from: "0.4.2")),
         .package(url: "https://github.com/DiscordBM/DiscordBM.git", .upToNextMinor(from: "1.16.2")),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.100.0")

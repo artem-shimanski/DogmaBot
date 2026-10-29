@@ -22,13 +22,10 @@ extension FitAnalyzer {
             for slot in Entity.Module.Slot.allCases {
                 var rack: [(socket: Int, module: FitSheet.Module)] = []
                 hull.modules.forEach(in: slot) { module in
+                    // A full load, as the game fills a module.
                     var charge: FitSheet.Charge?
                     if let loaded = module.charge {
-                        // A full load, as the game fills a module.
-                        let volume = loaded.attributes[.volume] ?? 0
-                        let capacity = module.attributes[.capacity] ?? 0
-                        let count = volume > 0 ? max(Int((capacity / volume).rounded(.down)), 1) : 1
-                        charge = FitSheet.Charge(item: item(loaded.typeID), count: count)
+                        charge = FitSheet.Charge(item: item(loaded.typeID), count: module.chargeCount)
                     }
                     let mutaplasmid = module.isMutated ? module.mutaplasmidTypeID.map(item) : nil
                     rack.append((module.socket, FitSheet.Module(slot: .init(slot),
@@ -42,23 +39,12 @@ extension FitAnalyzer {
                 modules += rack.sorted { $0.socket < $1.socket }.map(\.module)
             }
 
-            // The drones-in-space count covers ordinary drones only; fighters take tubes when launched.
             var drones: [FitSheet.Drone] = []
-            var dronesInSpace = 0
-            var squadronsLaunched = 0
-            var squadronCounts: [FitSheet.Squadron: Int] = [:]
             hull.drones.forEach { drone in
-                let squadron = FitSheet.Squadron(drone.squadron)
-                if let squadron {
-                    squadronCounts[squadron, default: 0] += 1
-                    if drone.isActive { squadronsLaunched += 1 }
-                } else if drone.isActive {
-                    dronesInSpace += drone.count
-                }
                 drones.append(FitSheet.Drone(item: item(drone.typeID),
                                              count: drone.count,
                                              isActive: drone.isActive,
-                                             squadron: squadron))
+                                             squadron: FitSheet.Squadron(drone.squadron)))
             }
 
             let pilot = stats[pilotID]
@@ -75,11 +61,9 @@ extension FitAnalyzer {
                 }
             }
             var squadrons: [FitSheet.Squadron: FitSheet.Count] = [:]
-            for squadron in FitSheet.Squadron.allCases {
-                let total = Int(hull.attributes[squadron.slotsAttribute] ?? 0)
-                let used = squadronCounts[squadron] ?? 0
-                if total > 0 || used > 0 {
-                    squadrons[squadron] = .init(used: used, total: total)
+            for (squadron, capacity) in hull.squadrons {
+                if let squadron = FitSheet.Squadron(squadron), capacity.total > 0 || capacity.used > 0 {
+                    squadrons[squadron] = .init(capacity)
                 }
             }
 
@@ -89,9 +73,9 @@ extension FitAnalyzer {
                 calibration: .init(hull.calibration),
                 droneBay: .init(hull.droneBay),
                 droneBandwidth: .init(hull.droneBandwidth),
-                dronesInSpace: .init(used: dronesInSpace, total: hull.dronesInSpace.total),
+                dronesInSpace: .init(hull.dronesInSpace),
                 fighterHangar: .init(hull.fighterBay),
-                fighterTubes: .init(used: squadronsLaunched, total: Int(hull.attributes[.fighterTubes] ?? 0)),
+                fighterTubes: .init(hull.fighterTubes),
                 squadrons: squadrons,
                 slots: slots,
                 turrets: .init(hull.capacity(of: .turret)),
@@ -154,7 +138,7 @@ extension FitAnalyzer {
                                  maxLockedTargets: targeting.maxLockedTargets,
                                  sensorStrength: targeting.ecmResistance,
                                  sensorType: targeting.sensorType.map(FitSheet.SensorType.init)),
-                cargoCapacity: hull.attributes[.capacity] ?? 0,
+                cargoCapacity: hull.cargoCapacity,
                 fuel: fuel,
                 eft: "",
                 dna: "")
@@ -200,18 +184,6 @@ extension FitSheet.Squadron {
         case .standupHeavy: self = .standupHeavy
         case .standupLight: self = .standupLight
         case .standupSupport: self = .standupSupport
-        }
-    }
-
-    /// The hull attribute with the number of slots for this squadron type.
-    var slotsAttribute: AttributeID {
-        switch self {
-        case .heavy: .fighterHeavySlots
-        case .light: .fighterLightSlots
-        case .support: .fighterSupportSlots
-        case .standupHeavy: .fighterStandupHeavySlots
-        case .standupLight: .fighterStandupLightSlots
-        case .standupSupport: .fighterStandupSupportSlots
         }
     }
 }
