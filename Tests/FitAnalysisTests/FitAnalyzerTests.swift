@@ -78,6 +78,17 @@ struct FitAnalyzerTests {
         #expect(fromDNA.damage == sheet.damage)
     }
 
+    @Test("DNA is read bare, with the fitting: prefix and as an in-game chat link")
+    func dnaForms() async throws {
+        let dna = "89807:2420;8:27359;65:27339;52:2301;1:2048;1:3841;3:2281;1:22291;3:31790;3:12076;1:2539;1::"
+        let analyzer = try FitAnalyzer()
+        let bare = try #require(try await analyzer.analyze(dna).fits.first)
+        for text in ["fitting:\(dna)", "<url=fitting:\(dna)>Anhinga</url>"] {
+            let fit = try #require(try await analyzer.analyze(text).fits.first)
+            #expect(fit.eft == bare.eft)
+        }
+    }
+
     @Test("Only as many drones as the pilot can control go to space, the strongest first")
     func droneLimit() async throws {
         let text = """

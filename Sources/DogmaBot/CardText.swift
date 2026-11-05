@@ -28,6 +28,14 @@ enum CardText {
         DiscordUtils.escapingSpecialCharacters(text)
     }
 
+    /// The fit's name, escaped, or `nil` when it is empty or repeats the ship name, as in `[Rifter, Rifter]`.
+    static func fitName(_ fit: FitSummary) -> String? {
+        guard let name = fit.name?.trimmingCharacters(in: .whitespaces), !name.isEmpty,
+              name.caseInsensitiveCompare(fit.shipName) != .orderedSame
+        else { return nil }
+        return escaped(name)
+    }
+
     /// The fit page with the fit in the fragment as base64url of its EFT. Browsers do not send the fragment to the
     /// server, so the page reads it on the client.
     static func webLink(_ page: String, eft: String) -> String {

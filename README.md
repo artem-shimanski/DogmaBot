@@ -6,11 +6,17 @@ damage, tank, capacitor, navigation, targeting and fitting resources, calculated
 
 [![Add to Discord](https://img.shields.io/badge/Add_to-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1564010332286885978)
 
+<p>
+  <img src="docs/screenshots/fit-text.png" width="464" align="top" alt="A fit in EFT format pasted into the /fit text command in Discord">
+  <img src="docs/screenshots/fit-card.png" width="291" align="top" alt="The bot's reply: offense, defense, resistances, tank, capacitor, navigation, targeting and fitting of the fit">
+</p>
+
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/fit` | Opens a form to paste a fit and replies with its stats. |
+| `/fit text` | Replies with the stats of a fit pasted into the command (EFT, DNA or in-game XML); a fitting link copied from the game chat works as is. |
+| `/fit file` | Replies with the stats of a fit in an attached file (EFT, DNA or in-game XML). |
 | `/compare` | Opens a form to paste two fits and replies with their stats side by side. |
 | **Apps → Analyze fit** (message context menu) | Calculates the fit contained in the selected message. |
 

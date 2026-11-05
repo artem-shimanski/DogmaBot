@@ -30,7 +30,9 @@ enum CompareCard {
                     header("A", a, webPage: webPage),
                     header("B", b, webPage: webPage),
                     .separator(.init(divider: true, spacing: .small)),
-                    .textDisplay(.init(content: table(comparison)))
+                    .textDisplay(.init(content: table(comparison))),
+                    // A separate display: the line break after the table's closing fence would show as an empty line.
+                    .textDisplay(.init(content: "-# ▲ B is better · ▼ A is better"))
                 ],
                 accent_color: accent
             ))
@@ -42,8 +44,8 @@ enum CompareCard {
     /// One line per fit with a small ship render; a media gallery would stretch the renders to the card width.
     private static func header(_ side: String, _ fit: FitSummary, webPage: String) -> Interaction.ActionRow.Component {
         var text = "**\(side)** \(fit.shipName)"
-        if let name = fit.name, !name.isEmpty {
-            text += "\n-# \(CardText.escaped(name))"
+        if let name = CardText.fitName(fit) {
+            text += "\n-# \(name)"
         }
         text += "\n\(CardText.openLink(webPage, fit: fit))"
         return .section(.init(
@@ -68,7 +70,6 @@ enum CompareCard {
             ```
             \(lines.joined(separator: "\n"))
             ```
-            -# ▲ B is better · ▼ A is better
             """
     }
 

@@ -24,6 +24,8 @@ enum FitCard {
         return components
     }
 
+    /// Discord renders the line break after a closing code fence as an empty line, so every text display
+    /// that holds a table ends with it and the next section starts a display of its own.
     static func card(for fit: FitSummary, webPage: String) -> Interaction.ActionRow.Component {
         let header = Interaction.ActionRow.Section(
             components: [.textDisplay(.init(content: title(for: fit, webPage: webPage)))],
@@ -34,7 +36,8 @@ enum FitCard {
             components: [
                 .section(header),
                 .separator(.init(divider: true, spacing: .small)),
-                .textDisplay(.init(content: [offense(fit), defense(fit), tank(fit)].joined(separator: "\n"))),
+                .textDisplay(.init(content: offense(fit) + "\n" + defense(fit))),
+                .textDisplay(.init(content: tank(fit))),
                 .separator(.init(divider: true, spacing: .small)),
                 .textDisplay(.init(content: [capacitor(fit), navigation(fit), targeting(fit), self.fitting(fit)]
                     .joined(separator: "\n")))
@@ -47,8 +50,8 @@ enum FitCard {
 
     private static func title(for fit: FitSummary, webPage: String) -> String {
         var lines = ["## \(fit.shipName)"]
-        if let name = fit.name, !name.isEmpty {
-            lines.append("**\(CardText.escaped(name))**")
+        if let name = CardText.fitName(fit) {
+            lines.append("**\(name)**")
         }
         if !fit.shipGroupName.isEmpty {
             lines.append("-# \(fit.shipGroupName)")

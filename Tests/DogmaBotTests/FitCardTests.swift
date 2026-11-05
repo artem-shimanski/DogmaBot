@@ -133,6 +133,32 @@ struct FitCardTests {
         #expect(json.contains(#"\\*Brawl\\*"#))
     }
 
+    @Test("A fit name that repeats the ship name is not shown")
+    func nameRepeatingShip() async throws {
+        let analyzer = try FitAnalyzer()
+        let fit = try #require(try await analyzer.analyze("[Rifter, rifter]\nDamage Control II").fits.first)
+        let card = try Self.json(FitCard.card(for: fit, webPage: Self.webPage))
+        let comparison = try Self.json(CompareCard.components(for: FitComparison(fit, fit), webPage: Self.webPage))
+
+        #expect(CardText.fitName(fit) == nil)
+        #expect(!card.contains("**rifter**"))
+        #expect(!comparison.contains("-# rifter"))
+    }
+
+    @Test("No text follows a closing code fence in the same text display")
+    func nothingAfterTables() async throws {
+        let analyzer = try FitAnalyzer()
+        let a = try #require(try await analyzer.analyze(Self.rifter).fits.first)
+        let b = try #require(try await analyzer.analyze(Self.dominix).fits.first)
+        let components = FitCard.components(for: FitAnalysis(fits: [a, b], warnings: []), webPage: Self.webPage)
+            + CompareCard.components(for: FitComparison(a, b), webPage: Self.webPage)
+        let data = try JSONEncoder().encode(ComponentsResponse(components: components))
+
+        let contents = Self.contents(try JSONSerialization.jsonObject(with: data)).filter { $0.contains("```") }
+        #expect(contents.count == 5)
+        #expect(contents.allSatisfy { $0.hasSuffix("```") })
+    }
+
     @Test("A comparison of two large fits stays within the message limits")
     func compareLimits() async throws {
         let fit = try #require(try await FitAnalyzer().analyze(Self.dominix).fits.first)
@@ -150,6 +176,14 @@ struct FitCardTests {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .withoutEscapingSlashes
         return String(decoding: try encoder.encode(value), as: UTF8.self)
+    }
+
+    /// Text of every text display in a message payload.
+    private static func contents(_ value: Any) -> [String] {
+        if let object = value as? [String: Any] {
+            return (object["content"] as? String).map { [$0] } ?? object.values.flatMap(contents)
+        }
+        return (value as? [Any])?.flatMap(contents) ?? []
     }
 
     /// Number of components and characters of text in a message payload.
