@@ -25,7 +25,7 @@ struct InteractionHandler: GatewayEventHandler {
             case Commands.analyzeFit:
                 // The resolved data of a message command holds exactly the target message.
                 let text = command.resolved?.messages?.values.first?.content ?? ""
-                try await analyze(text, for: interaction)
+                try await analyze(text, for: interaction, noFitReply: Commands.analyzeFitHelp)
             default:
                 break
             }
@@ -69,8 +69,11 @@ struct InteractionHandler: GatewayEventHandler {
     }
 
     /// Calculation takes milliseconds, so the result is sent as the initial response rather than deferred.
-    /// When `correctable`, text without a fit reopens in the fit modal for the user to fix it.
-    private func analyze(_ text: String, for interaction: Interaction, correctable: Bool = false) async throws {
+    /// When `correctable`, text without a fit reopens in the fit modal for the user to fix it;
+    /// otherwise the user gets `noFitReply`.
+    private func analyze(_ text: String, for interaction: Interaction, correctable: Bool = false,
+                         noFitReply: String = "No fit found. Paste a fit in EFT, DNA or in-game XML format.")
+        async throws {
         let analysis: FitAnalysis
         do {
             analysis = try await analyzer.analyze(text)
@@ -78,7 +81,7 @@ struct InteractionHandler: GatewayEventHandler {
             if correctable, text.utf16.count <= Commands.modalTextLimit {
                 try await respond(to: interaction, with: .modal(Commands.fitModal(correcting: text)))
             } else {
-                try await reject(interaction, "No fit found. Paste a fit in EFT, DNA or in-game XML format.")
+                try await reject(interaction, noFitReply)
             }
             return
         } catch .rejected(let reason) {

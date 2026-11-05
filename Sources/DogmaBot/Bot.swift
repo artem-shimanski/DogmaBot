@@ -66,8 +66,18 @@ struct Bot {
                 }
             }
             group.addTask {
-                for await (error, _) in await bot.eventFailures {
-                    logger.warning("Cannot decode a gateway event", metadata: ["error": "\(error)"])
+                await withDiscardingTaskGroup { recovered in
+                    for await (error, buffer) in await bot.eventFailures {
+                        guard let event = GatewayRecovery.event(from: Data(buffer: buffer)) else {
+                            logger.warning("Cannot decode a gateway event", metadata: ["error": "\(error)"])
+                            continue
+                        }
+                        recovered.addTask {
+                            await InteractionHandler(event: event, client: bot.client, analyzer: analyzer,
+                                                     webPage: webPage)
+                                .handleAsync()
+                        }
+                    }
                 }
             }
             for await event in await bot.events {

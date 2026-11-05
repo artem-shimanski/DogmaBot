@@ -20,6 +20,12 @@ enum Commands {
     static let compare = "compare"
     /// Message context menu command that analyzes the fit in the selected message.
     static let analyzeFit = "Analyze fit"
+    /// Reply to `analyzeFit` on a message without a fit, such as a card of the bot: what the command reads
+    /// and where to take other fits.
+    static let analyzeFitHelp = """
+        No fit in this message. **\(analyzeFit)** reads a fit written in the message text: EFT, DNA or in-game XML.
+        For a fit file use `/\(fit) \(fitFile)`, to paste a fit use `/\(fit) \(fitText)`.
+        """
 
     static let fitModalID = "fit-modal"
     static let fitTextID = "fit-text"
